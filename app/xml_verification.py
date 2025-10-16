@@ -47,11 +47,6 @@ def verify_xml_items_in_api(auth_token: str, xml_items: list) -> tuple[list, str
                 break
                 
         if not is_found:
-            missing_items.append({
-                "Codebar": current_codebar or "N/A",
-                "Referencia": current_reference or "N/A",
-                "CodigoProduto": current_product_code or "N/A",
-                "CodigoAuxiliar": item.get("CodigoAuxiliar") or "N/A",
-            })
+            missing_items.append(item)
 
     return missing_items, error
