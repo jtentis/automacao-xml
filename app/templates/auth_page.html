@@ -1,0 +1,15 @@
+{% extends "base_template.html" %}
+
+{% block content %}
+    <p class="text-gray-300 mb-8 self-center">Por favor, insira seu token de Autorização.</p>
+    <form method="POST" action="{{ url_for('main.authenticate') }}" class="bg-gray-700 p-6 rounded-lg shadow-xl max-w-lg mx-auto w-full">
+        <div class="mb-4 input-group">
+            <input type="text" id="auth_token" name="auth_token" required 
+                    class="shadow-sm focus:ring-indigo-400 focus:border-indigo-400 block w-full sm:text-sm border-gray-600 rounded-md p-2 bg-gray-700 text-white"
+                    placeholder="Cole seu token puro aqui...">
+        </div>
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md">
+            Salvar e Continuar
+        </button>
+    </form>
+{% endblock %}
