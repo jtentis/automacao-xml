@@ -1,6 +1,5 @@
 import os
 import uuid
-import json
 from flask import request, session, redirect, url_for, render_template, Blueprint
 from .api_client import api_call
 from .manual_search import search_manual_products
@@ -33,7 +32,6 @@ def authenticate():
         
     return render_template('auth_page.html', title="Autenticação da API de Produtos")
 
-
 @routes_bp.route('/logout')
 def logout():
     session.pop('auth_token', None)
@@ -43,7 +41,6 @@ def logout():
     session.pop('last_form_data', None)
     return redirect(url_for('main.authenticate'))
 
-
 @routes_bp.route('/search', methods=['GET', 'POST'])
 def search_products():
     auth_token = session.get('auth_token')
@@ -51,6 +48,7 @@ def search_products():
         return redirect(url_for('main.authenticate'))
 
     error = None
+    success_message = None
     results = []
     xml_preview_items = None
     
@@ -61,36 +59,37 @@ def search_products():
     
     current_mode = request.args.get('current_mode', 'manual')
     
-    if current_mode == 'manual' and 'last_manual_key' in session:
+    if request.args.get('error'):
+        error = request.args.get('error')
+    
+    if 'success_message' in session:
+        success_message = session.pop('success_message')
+
+    if current_mode == 'manual':
         last_manual_key = session.get('last_manual_key')
         results = temp_manual_cache.get(last_manual_key, [])
-        
-        # Opcional: Limpa o cache após a primeira visualização
-        # if last_manual_key in temp_manual_cache:
-        #    del temp_manual_cache[last_manual_key]
+        form_data = session.get('last_form_data', {})
+        last_codebar = form_data.get('codebar', '')
+        last_referencia = form_data.get('referencia', '')
+        last_codigo_produto = form_data.get('codigo_produto', '')
 
     elif current_mode == 'xml_preview_render' and 'xml_preview_key' in session:
         xml_preview_key = session.get('xml_preview_key')
         xml_preview_items = temp_xml_cache.get(xml_preview_key)
         
         if xml_preview_items is None:
-             error="Chave de pré-visualização expirada. Faça o upload novamente."
+             error="Sessão de pré-visualização expirada. Faça o upload novamente."
              current_mode = 'xml'
 
     elif current_mode == 'xml_verify' and 'final_xml_results' in session:
-        results = session.get('final_xml_results')
-        
-    if request.args.get('error'):
-        error = request.args.get('error')
+        results = session.get('final_xml_results', [])
 
     if request.method == 'POST':
-        
         post_mode = request.form.get('mode')
         
         if post_mode == 'manual':
             session.pop('xml_preview_key', None)
             session.pop('final_xml_results', None)
-            session.pop('last_manual_key', None)
             
             last_codebar = request.form.get('codebar', '')
             last_referencia = request.form.get('referencia', '')
@@ -144,11 +143,13 @@ def search_products():
             except Exception as e:
                 return redirect(url_for('main.search_products', current_mode='xml', error=f"Erro ao processar o arquivo: {str(e)}"))
 
+    # Renderiza o template
     return render_template(
         'search_page.html',
         title="Consulta de Produtos (NFe & Manual)",
         results=results,
         error=error,
+        success_message=success_message,
         current_mode=current_mode, 
         xml_preview_items=xml_preview_items,
         last_codebar=last_codebar,
@@ -177,6 +178,10 @@ def verify_xml_items():
     if error:
         return redirect(url_for('main.search_products', current_mode='xml', error=error))
 
-    session['final_xml_results'] = missing_items
+    if not missing_items:
+        session['final_xml_results'] = []
+        session['success_message'] = "SUCESSO: Todos os itens do XML foram encontrados na API!"
+    else:
+        session['final_xml_results'] = missing_items
 
     return redirect(url_for('main.search_products', current_mode='xml_verify'))
