@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{{ title }}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
+            body {
+                font-family: "Inter", sans-serif;
+                background-color: #1a1a1a;
+            }
+            .container {
+                max-width: 1024px;
+            }
+            .input-group label {
+                margin-bottom: 0.5rem;
+                display: block;
+                font-weight: 500;
+                color: #d1d5db;
+            }
+            .input-group textarea,
+            .input-group input:not([type="file"]),
+            .input-group input[type="file"] {
+                border-radius: 0.5rem;
+                border: 1px solid #4b5563;
+                padding: 0.5rem 0.75rem;
+                width: 100%;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+                transition: border-color 0.15s ease-in-out;
+                background-color: #374151;
+                color: #f3f4f6;
+            }
+            .input-group textarea::placeholder,
+            .input-group input::placeholder {
+                color: #9ca3af;
+            }
+            .input-group textarea:focus,
+            .input-group input:focus {
+                border-color: #60a5fa;
+            }
+            .table-responsive {
+                overflow-y: auto;
+                max-height: 600px;
+            }
+            .table-responsive::-webkit-scrollbar {
+                width: 10px;
+            }
+            .table-responsive::-webkit-scrollbar-track {
+                background: #475358;
+                border-radius: 3px;
+            }
+            .table-responsive::-webkit-scrollbar-thumb {
+                background: #4f46e5;
+            }
+            th {
+                background-color: #4b5563;
+                color: #d1d5db;
+            }
+            .tab-button.active {
+                background-color: #4b5563;
+                color: #fff;
+            }
+
+            input[type="file"] {
+                border: 1px solid #4b5563;
+                padding: 0.5rem;
+                cursor: pointer;
+            }
+            input[type="file"]::-webkit-file-upload-button {
+                visibility: hidden;
+            }
+            input[type="file"]::before {
+                content: "Selecionar arquivo XML";
+                display: inline-block;
+                background: #6366f1;
+                color: white;
+                border-radius: 4px;
+                padding: 6px 10px;
+                outline: none;
+                white-space: nowrap;
+                cursor: pointer;
+                font-weight: 500;
+                font-size: 0.875rem;
+                margin-right: 10px;
+            }
+
+            .loading-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(26, 26, 26, 0.8);
+                backdrop-filter: blur(4px);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+                color: white;
+            }
+            .spinner {
+                border: 8px solid #374151;
+                border-top: 8px solid #6366f1;
+                border-radius: 50%;
+                width: 60px;
+                height: 60px;
+                animation: spin 1s linear infinite;
+                margin-bottom: 1rem;
+            }
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+        </style>
+    </head>
+    <body class="p-10 h-screen flex flex-col justify-start">
+        <div class="container mx-auto">
+            <h1 class="text-3xl font-bold text-indigo-300 mb-6 justify-self-center">
+                {{ title }}
+            </h1>
+            {% block content %}{% endblock %}
+        </div>
+        <div id="loading-container" class="hidden">
+            <div class="loading-overlay">
+                <div class="spinner"></div>
+                <p id="loading-message" class="text-lg font-semibold">
+                    Verificando itens na API...
+                </p>
+                <p class="text-sm text-gray-300">
+                    Isso pode levar algum tempo.
+                </p>
+            </div>
+        </div>
+        <script>
+            function showTab(mode) {
+                document.getElementById("manual-form").classList.add("hidden");
+                document.getElementById("xml-form").classList.add("hidden");
+                document
+                    .getElementById("btn-manual")
+                    .classList.remove("active");
+                document.getElementById("btn-xml").classList.remove("active");
+
+                document
+                    .getElementById(mode + "-form")
+                    .classList.remove("hidden");
+                document.getElementById("btn-" + mode).classList.add("active");
+            }
+
+            document.addEventListener("DOMContentLoaded", () => {
+                const currentMode = "{{ current_mode or 'manual' }}";
+                showTab(
+                    currentMode.startsWith("xml")
+                        ? "xml"
+                        : currentMode.startsWith("xml_verify")
+                        ? "xml"
+                        : currentMode
+                );
+
+                const loadingContainer =
+                    document.getElementById("loading-container");
+                const loadingMessage =
+                    document.getElementById("loading-message");
+
+                const manualForm = document.getElementById("manual-form");
+                if (manualForm) {
+                    manualForm.addEventListener("submit", () => {
+                        loadingMessage.textContent =
+                            "Pesquisando produtos manualmente...";
+                        loadingContainer.classList.remove("hidden");
+                    });
+                }
+
+                const verifyForm = document.getElementById("verify-form");
+                if (verifyForm) {
+                    verifyForm.addEventListener("submit", () => {
+                        loadingMessage.textContent =
+                            "Verificando itens na API...";
+                        loadingContainer.classList.remove("hidden");
+                    });
+                }
+                const xmlForm = document.getElementById("xml-form");
+                if (xmlForm) {
+                    xmlForm.addEventListener("submit", () => {
+                        loadingMessage.textContent =
+                            "Processando arquivo XML...";
+                        loadingContainer.classList.remove("hidden");
+                    });
+                }
+            });
+        </script>
+    </body>
+</html>
