@@ -45,10 +45,18 @@ def parse_nfe_xml(xml_content: str) -> tuple[list, str | None]:
             reference_match = re.match(r'^([\d\w]+)', xprod)
             reference = reference_match.group(1) if reference_match is not None else ''
             
+            nameProduto = xprod.split(' ', 1) 
+            
+            if len(nameProduto) > 1:
+                nameProduto_trim = nameProduto[1]
+            else:
+                nameProduto_trim = ""
+            
             if codebar_ean:
                 xml_items.append({
                     "nItem": n_item,
                     "Codebar": codebar_ean,
+                    "NomeProduto": nameProduto_trim,
                     "Referencia": reference,
                     "CodigoProduto": codebar_ean,
                     "CodigoAuxiliar": code_aux,
