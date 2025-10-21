@@ -34,12 +34,15 @@ def parse_nfe_xml(xml_content: str) -> tuple[list, str | None]:
             codebar_ean_elem = find_robust(prod, 'cEAN')
             code_aux_elem = find_robust(prod, 'cProd')
             xprod_elem = find_robust(prod, 'xProd')
+            qcom_elem = find_robust(prod, 'qCom')
             
             n_item = det.get('nItem')
             
             codebar_ean = codebar_ean_elem.text.strip() if codebar_ean_elem is not None else ''
             code_aux = code_aux_elem.text.strip() if code_aux_elem is not None else ''
             xprod = xprod_elem.text.strip() if xprod_elem is not None else ''
+            
+            qcom = qcom_elem.text.strip() if qcom_elem is not None else ''
             
             # Referência: Apenas os primeiros dígitos antes do '-' em xProd
             reference_match = re.match(r'^([\d\w]+)', xprod)
@@ -60,6 +63,7 @@ def parse_nfe_xml(xml_content: str) -> tuple[list, str | None]:
                     "Referencia": reference,
                     "CodigoProduto": codebar_ean,
                     "CodigoAuxiliar": code_aux,
+                    "Quantidade": int(float(qcom))
                 })
 
     except ET.ParseError as e:

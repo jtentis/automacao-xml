@@ -139,61 +139,82 @@
             </div>
         </div>
         <script>
-            function showTab(mode) {
-                document.getElementById("manual-form").classList.add("hidden");
-                document.getElementById("xml-form").classList.add("hidden");
-                document
-                    .getElementById("btn-manual")
-                    .classList.remove("active");
-                document.getElementById("btn-xml").classList.remove("active");
+    function showTab(mode) {
+        document.getElementById("manual-form").classList.add("hidden");
+        document.getElementById("xml-form").classList.add("hidden");
+        
+        document
+            .getElementById("btn-manual")
+            .classList.remove("active");
+        document.getElementById("btn-xml").classList.remove("active");
 
-                document
-                    .getElementById(mode + "-form")
-                    .classList.remove("hidden");
-                document.getElementById("btn-" + mode).classList.add("active");
-            }
+        document
+            .getElementById(mode + "-form")
+            .classList.remove("hidden");
+        document.getElementById("btn-" + mode).classList.add("active");
+    }
 
-            document.addEventListener("DOMContentLoaded", () => {
-                const currentMode = "{{ current_mode or 'manual' }}";
-                showTab(
-                    currentMode.startsWith("xml")
-                        ? "xml"
-                        : currentMode.startsWith("xml_verify")
-                        ? "xml"
-                        : currentMode
-                );
+    function showManualLoading(loadingContainer, loadingMessage) {
+        loadingMessage.textContent = "Pesquisando produtos manualmente...";
+        loadingContainer.classList.remove("hidden");
+    }
 
-                const loadingContainer =
-                    document.getElementById("loading-container");
-                const loadingMessage =
-                    document.getElementById("loading-message");
+    document.addEventListener("DOMContentLoaded", () => {
+        const currentMode = "{{ current_mode or 'manual' }}";
+        showTab(
+            currentMode.startsWith("xml")
+                ? "xml"
+                : currentMode.startsWith("xml_verify")
+                    ? "xml"
+                    : currentMode
+        );
 
-                const manualForm = document.getElementById("manual-form");
-                if (manualForm) {
-                    manualForm.addEventListener("submit", () => {
-                        loadingMessage.textContent =
-                            "Pesquisando produtos manualmente...";
-                        loadingContainer.classList.remove("hidden");
-                    });
-                }
+        const loadingContainer =
+            document.getElementById("loading-container");
+        const loadingMessage =
+            document.getElementById("loading-message");
 
-                const verifyForm = document.getElementById("verify-form");
-                if (verifyForm) {
-                    verifyForm.addEventListener("submit", () => {
-                        loadingMessage.textContent =
-                            "Verificando itens na API...";
-                        loadingContainer.classList.remove("hidden");
-                    });
-                }
-                const xmlForm = document.getElementById("xml-form");
-                if (xmlForm) {
-                    xmlForm.addEventListener("submit", () => {
-                        loadingMessage.textContent =
-                            "Processando arquivo XML...";
-                        loadingContainer.classList.remove("hidden");
-                    });
-                }
+        const manualForm = document.getElementById("manual-form");
+        if (manualForm) {
+            const manualLoadingHandler = () => {
+                showManualLoading(loadingContainer, loadingMessage);
+            };
+
+            const textareas = manualForm.querySelectorAll("textarea");
+            textareas.forEach(function (textarea) {
+                textarea.addEventListener("keydown", function (event) {
+                    if (event.key === "Enter" || event.keyCode === 13) {
+                        if (!event.shiftKey) {
+                            event.preventDefault();
+                            
+                            manualLoadingHandler();
+                            
+                            manualForm.submit();
+                        }
+                    }
+                });
             });
-        </script>
+
+            manualForm.addEventListener("submit", manualLoadingHandler);
+        }
+
+        const verifyForm = document.getElementById("verify-form");
+        if (verifyForm) {
+            verifyForm.addEventListener("submit", () => {
+                loadingMessage.textContent =
+                    "Verificando itens na API...";
+                loadingContainer.classList.remove("hidden");
+            });
+        }
+        const xmlForm = document.getElementById("xml-form");
+        if (xmlForm) {
+            xmlForm.addEventListener("submit", () => {
+                loadingMessage.textContent =
+                    "Processando arquivo XML...";
+                loadingContainer.classList.remove("hidden");
+            });
+        }
+    });
+</script>
     </body>
 </html>

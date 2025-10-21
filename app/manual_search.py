@@ -52,19 +52,21 @@ def search_manual_products(auth_token: str, codebars: list, references: list, pr
                 principal_codebar = next((cb['Codebar'] for cb in produto.get('Codebars', []) if cb.get('Principal')), None)
                 display_codebar = principal_codebar or current_codebar or "N/A"
 
-                print(f"Produto encontrado: {produto.get('NomeProduto')} - Codebar: {display_codebar}, Referencia: {produto.get('Referencia')}, CodigoProduto: {produto.get('CodigoProduto')}")
+                # print(f"Produto encontrado: {produto.get('NomeProduto')} - Codebar: {display_codebar}, Referencia: {produto.get('Referencia')}, CodigoProduto: {produto.get('CodigoProduto')}")
                 
                 results.append({
                     "Codebar": display_codebar,
                     "Referencia": produto.get("Referencia"),
                     "CodigoProduto": produto.get("CodigoProduto"),
                     "CodigoAuxiliar": produto.get("CodigoAuxiliar"),
+                    "PrecoVenda": produto.get("PrecoVenda")
                 })
         
+        print(f"Foram encontrados: {len(results)} produtos")
         unique_results = []
         seen = set()
         for item in results:
-            key = (item['Codebar'], item['Referencia'], str(item['CodigoProduto']))
+            key = (item['Codebar'], item['Referencia'], str(item['CodigoProduto']), item['PrecoVenda'])
             if key not in seen:
                 seen.add(key)
                 unique_results.append(item)
