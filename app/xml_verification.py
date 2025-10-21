@@ -5,10 +5,16 @@ def verify_xml_items_in_api(auth_token: str, xml_items: list) -> tuple[list, str
     missing_items = []
     error = None
 
-    for item in xml_items:
+    total_items = len(xml_items)
+    
+    print(f"--- Começando a verificação de {total_items} itens ---\n")
+
+    for index, item in enumerate(xml_items, start=1):
         current_codebar = item.get("Codebar")
         current_reference = item.get("Referencia")
         current_product_code = item.get("CodigoProduto")
+        
+        item_details = f"Code: {current_product_code or 'N/A'}, Ref: {current_reference or 'N/A'}, Codebar: {current_codebar or 'N/A'}"
         
         payload = {
             "CodigoProduto": current_product_code if current_product_code else "",
@@ -22,6 +28,7 @@ def verify_xml_items_in_api(auth_token: str, xml_items: list) -> tuple[list, str
         api_response = api_call(auth_token, payload)
         
         if "error" in api_response:
+            print(f"[{index}/{total_items}] ERROR: API call failed for item: {item_details}. Error: {api_response['error']}")
             return missing_items, api_response["error"]
         
         produtos = api_response.get("Produtos", [])
@@ -48,5 +55,10 @@ def verify_xml_items_in_api(auth_token: str, xml_items: list) -> tuple[list, str
                 
         if not is_found:
             missing_items.append(item)
+            print(f"[{index}/{total_items}] NÃO ENCONTRADO ❌: {item_details}")
+        else:
+            print(f"[{index}/{total_items}] ENCONTRADO ✅: {item_details}")
 
+
+    print(f"\n--- Verificação da API completa. {len(missing_items)} itens não encontrados! ---")
     return missing_items, error
