@@ -28,16 +28,16 @@
                 <input type="hidden" name="mode" value="manual">
                 <div class="input-group">
                     <label for="codebar">Codebar (Codebar)</label>
-                    <textarea id="codebar" name="codebar" rows="3" class="resize-none" placeholder="1234567890, 0987654321, ...">{{ last_codebar | default('', true) }}</textarea>
+                    <textarea id="codebar" name="codebar" rows="3" class="resize-none" placeholder="7900278004041, 7900278004042, ...">{{ last_codebar | default('', true) }}</textarea>
                 </div>
                 <p class="text-sm text-gray-400">Ou, se preferir, use a busca combinada:</p>
                 <div class="input-group">
                     <label for="referencia">Referências (Referencia)</label>
-                    <textarea id="referencia" name="referencia" rows="3" class="resize-none" placeholder="REF001, REF002, ...">{{ last_referencia | default('', true) }}</textarea>
+                    <textarea id="referencia" name="referencia" rows="3" class="resize-none" placeholder="4006834, 4015042, ...">{{ last_referencia | default('', true) }}</textarea>
                 </div>
                 <div class="input-group">
                     <label for="codigo_produto">Códigos de Produto (CodigoProduto)</label>
-                    <textarea id="codigo_produto" name="codigo_produto" rows="3" class="resize-none" placeholder="1289925, 1289926, ...">{{ last_codigo_produto | default('', true) }}</textarea>
+                    <textarea id="codigo_produto" name="codigo_produto" rows="3" class="resize-none" placeholder="1289925, 900314, ...">{{ last_codigo_produto | default('', true) }}</textarea>
                 </div>
                 <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md">
                     Pesquisar
@@ -62,7 +62,7 @@
                 
                 {% if xml_preview_items %}
                     <p class="text-sm text-gray-400 mb-4">
-                        <span class="text-yellow-400 font-bold">Pré-visualização XML:</span> {{ xml_preview_items|length }} itens extraídos do arquivo.
+                        <span class="text-yellow-400 font-bold">Pré-visualização XML da NF {{ NumeroNFe | default('S/N', true) }}:</span> {{ xml_preview_items|length }} itens extraídos do arquivo.
                     </p>
                     
                     <div class="table-responsive mb-6">
@@ -81,7 +81,7 @@
                                 <tr class="hover:bg-gray-600 transition duration-100">
                                     <td class="px-4 py-2 whitespace-nowrap text-sm font-bold text-white">{{ item['nItem'] | default('S/N', true) }}</td>
                                     <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{{ item['Codebar'] | default('', true) }}</td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{{ item['Referencia'] | default('', true) }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{{ item['ReferenciaPosDash'] | default('', true) }}</td>
                                     <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{{ item['CodigoAuxiliar'] | default('', true) }}</td>
                                     <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{{ item['Quantidade'] | default('', true) }}</td>
                                 </tr>
@@ -111,11 +111,11 @@
                             <thead>
                                 <tr>
                                     {% if current_mode == 'xml_verify' %}
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg w-3/20">Item NFe</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-3/20">EAN</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/5">Descrição</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-3/20">Referência</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tr-lg w-3/20">PA</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg w-1/6">Item NFe</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">EAN</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-3/5">Descrição</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">Referência</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tr-lg w-1/6">PA</th>
                                     {% else %}
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg w-1/5">Código de Barras</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/5">Referência</th>
@@ -132,7 +132,7 @@
                                         <td class="px-4 py-2 whitespace-nowrap text-sm font-bold text-white truncate">{{ item['nItem'] | default('S/N', true) }}</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['Codebar'] | default('N/A', true) }}</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['NomeProduto'] | default('N/A', true) }}</td>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['Referencia'] | default('N/A', true) }}</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['ReferenciaPosDash'] | default('N/A', true) }}</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['CodigoAuxiliar'] | default('N/A', true) }}</td>
                                     {% else %}
                                         <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-white truncate">{{ item['Codebar'] | default('N/A', true) }}</td>

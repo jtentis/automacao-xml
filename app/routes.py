@@ -51,6 +51,7 @@ def search_products():
     success_message = None
     results = []
     xml_preview_items = None
+    NumeroNFe = ''
     
     form_data = session.get('last_form_data', {})
     last_codebar = form_data.get('codebar', '')
@@ -75,11 +76,15 @@ def search_products():
 
     elif current_mode == 'xml_preview_render' and 'xml_preview_key' in session:
         xml_preview_key = session.get('xml_preview_key')
-        xml_preview_items = temp_xml_cache.get(xml_preview_key)
+        cached = temp_xml_cache.get(xml_preview_key)
         
-        if xml_preview_items is None:
-             error="Sessão de pré-visualização expirada. Faça o upload novamente."
+        if cached is None:
+             error = "Sessão de pré-visualização expirada. Faça o upload novamente."
              current_mode = 'xml'
+        else:
+            # cached is a dict with 'items' and 'nfe_number'
+            xml_preview_items = cached.get('items', [])
+            NumeroNFe = cached.get('nfe_number', '')
 
     elif current_mode == 'xml_verify' and 'final_xml_results' in session:
         results = session.get('final_xml_results', [])
@@ -126,7 +131,7 @@ def search_products():
             
             try:
                 xml_content = xml_file.read().decode('utf-8')
-                xml_items, parse_error = parse_nfe_xml(xml_content)
+                xml_items, nfe_number, parse_error = parse_nfe_xml(xml_content)
                 
                 if parse_error:
                     return redirect(url_for('main.search_products', current_mode='xml', error=parse_error))
@@ -135,7 +140,7 @@ def search_products():
                     return redirect(url_for('main.search_products', current_mode='xml', error="Nenhum produto válido foi encontrado no XML."))
                 
                 xml_preview_key = str(uuid.uuid4())
-                temp_xml_cache[xml_preview_key] = xml_items
+                temp_xml_cache[xml_preview_key] = {'items': xml_items, 'nfe_number': nfe_number}
                 session['xml_preview_key'] = xml_preview_key
                 
                 return redirect(url_for('main.search_products', current_mode='xml_preview_render'))
@@ -152,6 +157,7 @@ def search_products():
         success_message=success_message,
         current_mode=current_mode, 
         xml_preview_items=xml_preview_items,
+        NumeroNFe=locals().get('NumeroNFe', ''),
         last_codebar=last_codebar,
         last_referencia=last_referencia,
         last_codigo_produto=last_codigo_produto,
@@ -161,7 +167,8 @@ def search_products():
 def verify_xml_items():
     auth_token = session.get('auth_token')
     xml_preview_key = session.get('xml_preview_key')
-    xml_items = temp_xml_cache.get(xml_preview_key)
+    cached = temp_xml_cache.get(xml_preview_key)
+    xml_items = cached.get('items') if cached else None
     
     if not auth_token:
         return redirect(url_for('main.authenticate'))

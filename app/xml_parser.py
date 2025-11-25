@@ -9,8 +9,9 @@ def find_robust(elem, tag_name):
         return elem_with_ns
     return elem.find(tag_name)
 
-def parse_nfe_xml(xml_content: str) -> tuple[list, str | None]:
+def parse_nfe_xml(xml_content: str) -> tuple[list, str, str | None]:
     xml_items = []
+    nfe_number_text = ''
     error = None
     
     try:
@@ -18,12 +19,14 @@ def parse_nfe_xml(xml_content: str) -> tuple[list, str | None]:
         root = ET.fromstring(xml_content)
         
         nfe_root = root.find('NFe') or root.find('infNFe') or root 
+        nfe_number = nfe_root.find('.//ide/nNF')
+        nfe_number_text = nfe_number.text.strip() if (nfe_number is not None and nfe_number.text) else ''
         
         dets = nfe_root.findall('.//det') 
         
         if not dets:
             error = "Nenhum item de produto (<det>) encontrado no XML."
-            return [], error
+            return [], nfe_number_text, error
             
         for det in dets:
             prod = find_robust(det, 'prod')
@@ -47,6 +50,13 @@ def parse_nfe_xml(xml_content: str) -> tuple[list, str | None]:
             # Referência: Apenas os primeiros dígitos antes do '-' em xProd
             reference_match = re.match(r'^([\d\w]+)', xprod)
             reference = reference_match.group(1) if reference_match is not None else ''
+
+            # Referência: tudo que vem após ' - ' até o próximo espaço (token sem espaços)
+            # Ex: for 'Produto X - ABC123 detalhe', captura 'ABC123'
+            after_dash_match = re.search(r'-\s*(\S+)', xprod)
+            referencia_pos_dash = after_dash_match.group(1) if after_dash_match is not None else ''
+            
+            reference_total = reference + '-' + referencia_pos_dash
             
             nameProduto = xprod.split(' ', 1) 
             
@@ -61,14 +71,15 @@ def parse_nfe_xml(xml_content: str) -> tuple[list, str | None]:
                     "Codebar": codebar_ean,
                     "NomeProduto": nameProduto_trim,
                     "Referencia": reference,
+                    "ReferenciaPosDash": reference_total,
                     "CodigoProduto": codebar_ean,
                     "CodigoAuxiliar": code_aux,
-                    "Quantidade": int(float(qcom))
+                    "Quantidade": int(float(qcom)),
                 })
 
     except ET.ParseError as e:
         error = f"Erro de parsing XML: A estrutura do arquivo está inválida. ({e})"
     except Exception as e:
         error = f"Erro inesperado no parser XML: {str(e)}"
-        
-    return xml_items, error
+
+    return xml_items, nfe_number_text, error
