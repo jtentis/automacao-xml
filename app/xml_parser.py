@@ -52,7 +52,6 @@ def parse_nfe_xml(xml_content: str) -> tuple[list, str, str | None]:
             reference = reference_match.group(1) if reference_match is not None else ''
 
             # Referência: tudo que vem após ' - ' até o próximo espaço (token sem espaços)
-            # Ex: for 'Produto X - ABC123 detalhe', captura 'ABC123'
             after_dash_match = re.search(r'-\s*(\S+)', xprod)
             referencia_pos_dash = after_dash_match.group(1) if after_dash_match is not None else ''
             

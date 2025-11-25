@@ -39,6 +39,7 @@ def logout():
     session.pop('final_xml_results', None)
     session.pop('last_manual_key', None)
     session.pop('last_form_data', None)
+    session.pop('NumeroNFe', None)
     return redirect(url_for('main.authenticate'))
 
 @routes_bp.route('/search', methods=['GET', 'POST'])
@@ -82,12 +83,12 @@ def search_products():
              error = "Sessão de pré-visualização expirada. Faça o upload novamente."
              current_mode = 'xml'
         else:
-            # cached is a dict with 'items' and 'nfe_number'
             xml_preview_items = cached.get('items', [])
             NumeroNFe = cached.get('nfe_number', '')
 
     elif current_mode == 'xml_verify' and 'final_xml_results' in session:
         results = session.get('final_xml_results', [])
+        NumeroNFe = session.get('NumeroNFe', '')
 
     if request.method == 'POST':
         post_mode = request.form.get('mode')
@@ -143,12 +144,13 @@ def search_products():
                 temp_xml_cache[xml_preview_key] = {'items': xml_items, 'nfe_number': nfe_number}
                 session['xml_preview_key'] = xml_preview_key
                 
+                session['NumeroNFe'] = nfe_number
+                
                 return redirect(url_for('main.search_products', current_mode='xml_preview_render'))
             
             except Exception as e:
                 return redirect(url_for('main.search_products', current_mode='xml', error=f"Erro ao processar o arquivo: {str(e)}"))
 
-    # Renderiza o template
     return render_template(
         'search_page.html',
         title="Consulta de Produtos (NFe & Manual)",
@@ -178,9 +180,11 @@ def verify_xml_items():
 
     missing_items, error = verify_xml_items_in_api(auth_token, xml_items)
 
+    if cached:
+        session['NumeroNFe'] = cached.get('nfe_number', '')
     if xml_preview_key in temp_xml_cache:
         del temp_xml_cache[xml_preview_key]
-    session.pop('xml_preview_key', None) 
+    session.pop('xml_preview_key', None)
     
     if error:
         return redirect(url_for('main.search_products', current_mode='xml', error=error))
