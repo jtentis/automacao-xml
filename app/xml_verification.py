@@ -3,7 +3,7 @@ import re
 from .api_client import api_call
 from .manual_search import search_manual_products
 
-def verify_xml_items_in_api(auth_token: str, xml_items: list) -> tuple[list, str | None]:
+def verify_xml_items_in_api(auth_token: str, xml_items: list, cancellation_flags=None) -> tuple[list, str | None]:
     missing_items = []
     error = None
 
@@ -12,6 +12,10 @@ def verify_xml_items_in_api(auth_token: str, xml_items: list) -> tuple[list, str
     print(f"--- Verificando {total_items} itens ---")
 
     for index, item in enumerate(xml_items, start=1):
+        if cancellation_flags and cancellation_flags.get('_global_cancel', False):
+            print(f"[CANCELADO] Verificação interrompida pelo usuário.")
+            break
+        
         current_codebar = item.get("Codebar")
         current_reference = item.get("Referencia")
         current_product_code = item.get("CodigoProduto")
@@ -20,7 +24,7 @@ def verify_xml_items_in_api(auth_token: str, xml_items: list) -> tuple[list, str
         payload = {
             "CodigoProduto": "",
             "NomeProduto": "",
-            "Referencia": current_codigo_auxiliar if current_codigo_auxiliar else "",
+            "Referencia": "900314",
             "Codebar": current_codebar if current_codebar else "",
             "CodigoAuxiliar": "",
             "CodigoIntegracaoOMS": ""

@@ -1,13 +1,17 @@
 import os
 from .api_client import api_call
 
-def search_manual_products(auth_token: str, codebars: list, references: list, product_codes: list) -> tuple[list, str | None]:
+def search_manual_products(auth_token: str, codebars: list, references: list, product_codes: list, cancellation_flags=None) -> tuple[list, str | None]:
     results = []
     error = None
     max_len = max(len(codebars), len(references), len(product_codes))
 
     if max_len > 0:
         for i in range(max_len):
+            if cancellation_flags and cancellation_flags.get('_global_cancel', False):
+                print(f"[CANCELADO] Busca manual interrompida pelo usuário.")
+                break
+            
             current_codebar = codebars[i] if i < len(codebars) else None
             current_reference = references[i] if i < len(references) else None
             current_product_code = product_codes[i] if i < len(product_codes) else None
@@ -52,10 +56,13 @@ def search_manual_products(auth_token: str, codebars: list, references: list, pr
                 principal_codebar = next((cb['Codebar'] for cb in produto.get('Codebars', []) if cb.get('Principal')), None)
                 display_codebar = principal_codebar or current_codebar or "N/A"
 
-                # print(f"Produto encontrado: {produto.get('NomeProduto')} - Codebar: {display_codebar}, Referencia: {produto.get('Referencia')}, CodigoProduto: {produto.get('CodigoProduto')}")
-                
+                # coletar todos os codebars para exibir
+                api_codebars_list = [cb.get('Codebar') for cb in produto.get('Codebars', []) if cb.get('Codebar')]
+                api_codebars_str = ", ".join(api_codebars_list) if api_codebars_list else ""
+
                 results.append({
                     "Codebar": display_codebar,
+                    "ApiCodebars": api_codebars_str,
                     "Referencia": produto.get("Referencia"),
                     "CodigoProduto": produto.get("CodigoProduto"),
                     "CodigoAuxiliar": produto.get("CodigoAuxiliar"),

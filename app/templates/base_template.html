@@ -119,13 +119,16 @@
         </div>
         <div id="loading-container" class="hidden">
             <div class="loading-overlay">
-                <div class="spinner"></div>
+                <div class="spinner" id="spinner"></div>
                 <p id="loading-message" class="text-lg font-semibold">
                     Verificando itens na API...
                 </p>
                 <p class="text-sm text-gray-300">
                     Isso pode levar algum tempo.
                 </p>
+                <button id="cancel-button" class="mt-6 bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-6 rounded-lg transition duration-150 ease-in-out shadow-md">
+                    Cancelar
+                </button>
             </div>
         </div>
         <script>
@@ -149,6 +152,10 @@
         loadingContainer.classList.remove("hidden");
     }
 
+    function hideAlert() {
+        document.getElementById("alert-success").classList.add("hidden");
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         const currentMode = "{{ current_mode or 'manual' }}";
         showTab(
@@ -163,10 +170,38 @@
             document.getElementById("loading-container");
         const loadingMessage =
             document.getElementById("loading-message");
+        const cancelButton = document.getElementById("cancel-button");
+
+        let activeController = null;
+        let activeForm = null;
+
+        const hideLoding = () => {
+            loadingContainer.classList.add("hidden");
+        };
+
+        cancelButton.addEventListener("click", () => {
+            // mandar request para o servidor cancelar a operacao
+            fetch("{{ url_for('main.cancel_operation') }}", { method: "POST" })
+                .then(() => {
+                    cancelButton.disabled = true;
+                    cancelButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="animate-spin inline-block h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Cancelando...';
+                    cancelButton.classList.add('opacity-75', 'cursor-not-allowed');
+                    document.getElementById("spinner").classList.add("hidden");
+                    console.log("Cancel request acknowledged.");
+                })
+                .catch(err => {
+                    console.log("Cancel request sent or already completed:", err);
+                    cancelButton.disabled = true;
+                    cancelButton.textContent = 'Cancelado';
+                });
+            //  nao tirar o overylay ainda, esperar o servidor responder
+        });
 
         const manualForm = document.getElementById("manual-form");
         if (manualForm) {
             const manualLoadingHandler = () => {
+                activeForm = manualForm;
+                activeController = new AbortController();
                 showManualLoading(loadingContainer, loadingMessage);
             };
 
@@ -191,6 +226,8 @@
         const verifyForm = document.getElementById("verify-form");
         if (verifyForm) {
             verifyForm.addEventListener("submit", () => {
+                activeForm = verifyForm;
+                activeController = new AbortController();
                 loadingMessage.textContent =
                     "Verificando itens na API...";
                 loadingContainer.classList.remove("hidden");
@@ -199,6 +236,8 @@
         const xmlForm = document.getElementById("xml-form");
         if (xmlForm) {
             xmlForm.addEventListener("submit", () => {
+                activeForm = xmlForm;
+                activeController = new AbortController();
                 loadingMessage.textContent =
                     "Processando arquivo XML...";
                 loadingContainer.classList.remove("hidden");

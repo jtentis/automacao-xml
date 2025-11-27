@@ -10,6 +10,7 @@ routes_bp = Blueprint('main', __name__)
 
 temp_xml_cache = {}
 temp_manual_cache = {}
+cancellation_flags = {}  # Use a simple dict to track cancellation per session
 
 def clean_input_list(data: str) -> list:
     if not data:
@@ -41,6 +42,13 @@ def logout():
     session.pop('last_form_data', None)
     session.pop('NumeroNFe', None)
     return redirect(url_for('main.authenticate'))
+
+@routes_bp.route('/cancel', methods=['POST'])
+def cancel_operation():
+    # cancelamento global
+    cancellation_flags['_global_cancel'] = True
+    print("[CANCEL] User clicked cancel button")
+    return {'status': 'cancelled'}, 200
 
 @routes_bp.route('/search', methods=['GET', 'POST'])
 def search_products():
@@ -112,7 +120,8 @@ def search_products():
             }
 
             if codebars or references or product_codes:
-                results, error = search_manual_products(auth_token, codebars, references, product_codes)
+                cancellation_flags.clear()
+                results, error = search_manual_products(auth_token, codebars, references, product_codes, cancellation_flags)
                 if not error:
                     manual_key = str(uuid.uuid4())
                     temp_manual_cache[manual_key] = results
@@ -178,7 +187,8 @@ def verify_xml_items():
     if not xml_items:
         return redirect(url_for('main.search_products', current_mode='xml', error="Chave de pré-visualização expirada. Faça o upload novamente."))
 
-    missing_items, error = verify_xml_items_in_api(auth_token, xml_items)
+    cancellation_flags.clear()
+    missing_items, error = verify_xml_items_in_api(auth_token, xml_items, cancellation_flags)
 
     if cached:
         session['NumeroNFe'] = cached.get('nfe_number', '')
@@ -191,7 +201,7 @@ def verify_xml_items():
 
     if not missing_items:
         session['final_xml_results'] = []
-        session['success_message'] = "SUCESSO: Todos os itens do XML foram encontrados na API!"
+        session['success_message'] = "Sucesso: Todos os itens do XML foram encontrados na API!"
     else:
         session['final_xml_results'] = missing_items
 

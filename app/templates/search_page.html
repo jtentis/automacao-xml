@@ -10,8 +10,9 @@
 
     {# Bloco de SUCESSO #}
     {% if success_message %}
-        <div class="p-4 mb-4 text-sm text-green-800 bg-green-200 rounded-lg dark:bg-green-800 dark:text-green-200" role="alert">
-            <span class="font-medium">Sucesso:</span> {{ success_message }}
+        <div class="flex flex-row justify-between p-4 mb-4 text-sm text-green-800 bg-green-200 rounded-lg dark:bg-green-800 dark:text-green-200" role="alert" id="alert-success">
+            <span class="font-medium">{{ success_message }}</span>
+            <button onclick=hideAlert()>X</button>
         </div>
     {% endif %}
 
@@ -124,28 +125,27 @@
                         </div>
                         {% endif %}
                     <div class="table-responsive">
-                        <!-- Toolbar for selection / copy (visible in XML verify mode) -->
-
                         <table class="divide-y divide-gray-700 rounded-lg w-full">
                             <thead>
                                 <tr>
                                     {% if current_mode == 'xml_verify' %}
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg w-1/6"></th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg"></th>
                                     {% endif %}
                                     {% if current_mode == 'xml_verify' %}
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/6">Item</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">ID Microvix</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">EAN 1</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">EAN 2</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">Descrição</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">Referência</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/6">PA</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Item</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">ID Microvix</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">EAN 1</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">EAN 2</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Descrição</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Referência</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">PA</th>
                                     {% else %}
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg w-1/5">Código de Barras</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/5">Referência</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/5">Código Produto</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/5">PA</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/5">Preço Venda</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg">ID Microvix</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Referência</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">EAN 1</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">EAN 2</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">PA</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Preço Venda</th>
                                     {% endif %}
                                 </tr>
                             </thead>
@@ -155,7 +155,12 @@
                                     {% if current_mode == 'xml_verify' %}
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">
                                             <label class="select-cell w-full h-full flex items-center">
-                                                <input type="checkbox" class="row-checkbox" data-codebar="{{ item['Codebar'] | default('', true) }}">
+                                                {% if item['ApiCodebars'] %}
+                                                    {% set api_codebars = item['ApiCodebars'].split(',') %}
+                                                    <input type="checkbox" class="row-checkbox" data-codebars="{{ item['ApiCodebars'] }}">
+                                                {% else %}
+                                                    <input type="checkbox" class="row-checkbox" data-codebars="{{ item['Codebar'] | default('', true) }}">
+                                                {% endif %}
                                                 <span class="checkmark"></span>
                                             </label>
                                         </td>
@@ -183,9 +188,26 @@
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['ReferenciaPosDash'] | default('N/A', true) }}</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['CodigoAuxiliar'] | default('N/A', true) }}</td>
                                     {% else %}
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-white truncate">{{ item['Codebar'] | default('N/A', true) }}</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-white truncate">{{ item['CodigoProduto'] | default('N/A', true) }}</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['Referencia'] | default('N/A', true) }}</td>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['CodigoProduto'] | default('N/A', true) }}</td>
+                                        {# EAN 1 for manual results #}
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">
+                                            {% if item['ApiCodebars'] %}
+                                                {% set api_codebars = item['ApiCodebars'].split(',') %}
+                                                <span class="text-yellow-400">{{ api_codebars[0]|trim }}</span>
+                                            {% else %}
+                                                <span class="text-yellow-400">{{ item['Codebar'] | default('N/A', true) }}</span>
+                                            {% endif %}
+                                        </td>
+                                        {# EAN 2 for manual results (if present) #}
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">
+                                            {% if item['ApiCodebars'] %}
+                                                {% set api_codebars = item['ApiCodebars'].split(',') %}
+                                                {% if api_codebars|length > 1 %}
+                                                    <span class="text-yellow-400">{{ api_codebars[1]|trim }}</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['CodigoAuxiliar'] | default('N/A', true) }}</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">R${{ item['PrecoVenda'] | default('N/A', true) }}</td>
                                     {% endif %}
@@ -208,7 +230,7 @@
 </a>
     
 <script>
-// Selection + copy utilities (only relevant when in xml_verify mode)
+
 function updateSelectedCount() {
     const checked = document.querySelectorAll('.row-checkbox:checked').length;
     const el = document.getElementById('selected-count');
@@ -236,7 +258,17 @@ document.addEventListener('DOMContentLoaded', function(){
 
     function getSelectedCodebars() {
         const nodes = Array.from(document.querySelectorAll('.row-checkbox:checked'));
-        return nodes.map(n => n.dataset.codebar || '').filter(Boolean);
+        const allCodes = [];
+        nodes.forEach(n => {
+            const codebars = n.dataset.codebars || '';
+            if (codebars) {
+                codebars.split(',').forEach(cb => {
+                    const trimmed = cb.trim();
+                    if (trimmed) allCodes.push(trimmed);
+                });
+            }
+        });
+        return allCodes;
     }
 
     if (copyCsvBtn) copyCsvBtn.addEventListener('click', function(){
