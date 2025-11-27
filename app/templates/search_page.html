@@ -68,13 +68,13 @@
                     
                     <div class="table-responsive mb-6">
                         <table class="min-w-full divide-y divide-gray-700 rounded-lg">
-                            <thead>
+                            <thead class="position-sticky">
                                 <tr>
                                     <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg">Item NFe</th>
                                     <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Código de Barras</th>
                                     <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Referência</th>
                                     <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">PA</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tr-lg">Quantidade</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Quantidade</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-gray-700 divide-y divide-gray-600">
@@ -107,9 +107,7 @@
                             <span class="text-indigo-400 font-bold">Modo Manual:</span> Exibindo {{ results|length }} itens encontrados.
                         {% endif %}
                     </p>
-                    <div class="table-responsive">
-                        <!-- Toolbar for selection / copy (visible in XML verify mode) -->
-                        {% if current_mode == 'xml_verify' %}
+                    {% if current_mode == 'xml_verify' %}
                         <div class="flex items-center justify-between mb-3 gap-3">
                             <div class="flex items-center gap-2 text-sm text-gray-300">
                                     <label class="select-cell flex items-center gap-2">
@@ -125,8 +123,10 @@
                             </div>
                         </div>
                         {% endif %}
+                    <div class="table-responsive">
+                        <!-- Toolbar for selection / copy (visible in XML verify mode) -->
 
-                        <table class="divide-y divide-gray-700 rounded-lg table-fixed w-full">
+                        <table class="divide-y divide-gray-700 rounded-lg w-full">
                             <thead>
                                 <tr>
                                     {% if current_mode == 'xml_verify' %}
@@ -134,16 +134,18 @@
                                     {% endif %}
                                     {% if current_mode == 'xml_verify' %}
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/6">Item</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">EAN</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-3/5">Descrição</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">ID Microvix</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">EAN 1</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">EAN 2</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">Descrição</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-2/6">Referência</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tr-lg w-1/6">PA</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/6">PA</th>
                                     {% else %}
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg w-1/5">Código de Barras</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/5">Referência</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/5">Código Produto</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/5">PA</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tr-lg w-1/5">Preço Venda</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider w-1/5">Preço Venda</th>
                                     {% endif %}
                                 </tr>
                             </thead>
@@ -158,7 +160,25 @@
                                             </label>
                                         </td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm font-bold text-white truncate">{{ item['nItem'] | default('S/N', true) }}</td>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['Codebar'] | default('N/A', true) }}</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['CodigoProduto'] | default('N/A', true) }}</td>
+                                        {# EAN 1 #}
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">
+                                            {% if item['ApiCodebars'] %}
+                                                {% set api_codebars = item['ApiCodebars'].split(',') %}
+                                                <span class="text-yellow-400">{{ api_codebars[0]|trim }}</span>
+                                            {% else %}
+                                                <span class="text-yellow-400">{{ item['Codebar'] | default('N/A', true) }}</span>
+                                            {% endif %}
+                                        </td>
+                                        {# EAN 2 #}
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">
+                                            {% if item['ApiCodebars'] %}
+                                                {% set api_codebars = item['ApiCodebars'].split(',') %}
+                                                {% if api_codebars|length > 1 %}
+                                                    <span class="text-yellow-400">{{ api_codebars[1]|trim }}</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['NomeProduto'] | default('N/A', true) }}</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['ReferenciaPosDash'] | default('N/A', true) }}</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['CodigoAuxiliar'] | default('N/A', true) }}</td>
