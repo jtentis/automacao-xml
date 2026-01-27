@@ -134,10 +134,10 @@
                                     {% if current_mode == 'xml_verify' %}
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Item</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">ID Microvix</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Referência</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">EAN 1</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">EAN 2</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Descrição</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Referência</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">PA</th>
                                     {% else %}
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg">ID Microvix</th>
@@ -157,15 +157,16 @@
                                             <label class="select-cell w-full h-full flex items-center">
                                                 {% if item['ApiCodebars'] %}
                                                     {% set api_codebars = item['ApiCodebars'].split(',') %}
-                                                    <input type="checkbox" class="row-checkbox" data-codebars="{{ item['ApiCodebars'] }}">
+                                                    <input type="checkbox" class="row-checkbox" data-codebars="{{ item['ApiCodebars'] }}" data-referencia="{{ item['ReferenciaPosDash'] | default('N/A', true) }}">
                                                 {% else %}
-                                                    <input type="checkbox" class="row-checkbox" data-codebars="{{ item['Codebar'] | default('', true) }}">
+                                                    <input type="checkbox" class="row-checkbox" data-codebars="{{ item['Codebar'] | default('', true) }}" data-referencia="{{ item['ReferenciaPosDash'] | default('N/A', true) }}">
                                                 {% endif %}
                                                 <span class="checkmark"></span>
                                             </label>
                                         </td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm font-bold text-white truncate">{{ item['nItem'] | default('S/N', true) }}</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['CodigoProduto'] | default('N/A', true) }}</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['ReferenciaPosDash'] | default('N/A', true) }}</td>
                                         {# EAN 1 #}
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">
                                             {% if item['ApiCodebars'] %}
@@ -185,11 +186,9 @@
                                             {% endif %}
                                         </td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['NomeProduto'] | default('N/A', true) }}</td>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['ReferenciaPosDash'] | default('N/A', true) }}</td>
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['CodigoAuxiliar'] | default('N/A', true) }}</td>
                                     {% else %}
                                         <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-white truncate">{{ item['CodigoProduto'] | default('N/A', true) }}</td>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['Referencia'] | default('N/A', true) }}</td>
                                         {# EAN 1 for manual results #}
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">
                                             {% if item['ApiCodebars'] %}
@@ -256,25 +255,33 @@ document.addEventListener('DOMContentLoaded', function(){
     const copyCsvBtn = document.getElementById('copy-csv');
     const copyExcelBtn = document.getElementById('copy-excel');
 
-    function getSelectedCodebars() {
+    function getSelectedGrouped() {
         const nodes = Array.from(document.querySelectorAll('.row-checkbox:checked'));
-        const allCodes = [];
+        const groups = {};
         nodes.forEach(n => {
+            const referencia = n.dataset.referencia || 'N/A';
             const codebars = n.dataset.codebars || '';
+            if (!groups[referencia]) {
+                groups[referencia] = [];
+            }
             if (codebars) {
                 codebars.split(',').forEach(cb => {
                     const trimmed = cb.trim();
-                    if (trimmed) allCodes.push(trimmed);
+                    if (trimmed) groups[referencia].push(trimmed);
                 });
             }
         });
-        return allCodes;
+        return groups;
     }
 
     if (copyCsvBtn) copyCsvBtn.addEventListener('click', function(){
-        const codes = getSelectedCodebars();
-        if (!codes.length) { alert('Nenhum item selecionado'); return; }
-        const text = codes.join(', ');
+        const groups = getSelectedGrouped();
+        const allCodes = [];
+        for (const ref in groups) {
+            allCodes.push(...groups[ref]);
+        }
+        if (!allCodes.length) { alert('Nenhum item selecionado'); return; }
+        const text = allCodes.join(', ');
         navigator.clipboard.writeText(text).then(()=>{
             copyCsvBtn.textContent = 'Copiado!';
             setTimeout(()=> copyCsvBtn.textContent = 'Copiar (linha, vírgulas)', 1200);
@@ -282,12 +289,22 @@ document.addEventListener('DOMContentLoaded', function(){
     });
 
     if (copyExcelBtn) copyExcelBtn.addEventListener('click', function(){
-        const codes = getSelectedCodebars();
-        if (!codes.length) { alert('Nenhum item selecionado'); return; }
-        const text = codes.join('\n');
+        const groups = getSelectedGrouped();
+        const refs = Object.keys(groups).filter(ref => groups[ref].length > 0);
+        if (!refs.length) { alert('Nenhum item selecionado'); return; }
+        const maxLen = Math.max(...refs.map(ref => groups[ref].length));
+        const lines = [];
+        // First line: references
+        lines.push(refs.join('\t'));
+        // Then codebars rows
+        for (let i = 0; i < maxLen; i++) {
+            const row = refs.map(ref => groups[ref][i] || '').join('\t');
+            lines.push(row);
+        }
+        const text = lines.join('\n');
         navigator.clipboard.writeText(text).then(()=>{
             copyExcelBtn.textContent = 'Copiado!';
-            setTimeout(()=> copyExcelBtn.textContent = 'Copiar (colunas para Excel)', 1200);
+            setTimeout(()=> copyExcelBtn.textContent = 'Copiar (Excel)', 1200);
         });
     });
 });
