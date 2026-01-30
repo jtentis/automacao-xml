@@ -132,13 +132,13 @@
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg"></th>
                                     {% endif %}
                                     {% if current_mode == 'xml_verify' %}
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Item</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">ID Microvix</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Referência</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">EAN 1</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">EAN 2</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Descrição</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">PA</th>
+                                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">Item</th>
+                                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">ID Microvix</th>
+                                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">Referência</th>
+                                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">EAN 1</th>
+                                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">EAN 2</th>
+                                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">Descrição</th>
+                                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">PA</th>
                                     {% else %}
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg">ID Microvix</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider">Referência</th>
@@ -189,6 +189,7 @@
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['CodigoAuxiliar'] | default('N/A', true) }}</td>
                                     {% else %}
                                         <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-white truncate">{{ item['CodigoProduto'] | default('N/A', true) }}</td>
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">{{ item['Referencia'] | default('N/A', true) }}</td>
                                         {# EAN 1 for manual results #}
                                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">
                                             {% if item['ApiCodebars'] %}
