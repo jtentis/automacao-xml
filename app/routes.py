@@ -1,7 +1,7 @@
 import os
 import uuid
-from flask import request, session, redirect, url_for, render_template, Blueprint
-from .api_client import api_call
+from flask import request, session, redirect, url_for, render_template, Blueprint, flash, jsonify
+from .api_client import api_call, api_login, get_final_auth_token
 from .manual_search import search_manual_products
 from .xml_parser import parse_nfe_xml
 from .xml_verification import verify_xml_items_in_api
@@ -17,21 +17,51 @@ def clean_input_list(data: str) -> list:
         return []
     return [item.strip() for item in data.replace('\n', ',').split(',') if item.strip()]
 
-@routes_bp.route('/', methods=['GET', 'POST'])
+@routes_bp.route('/', methods=['GET'])
 def authenticate():
-    if request.method == 'POST':
-        auth_token = request.form.get('auth_token')
-        if auth_token:
-            cleaned_token = auth_token.strip()
-            session['auth_token'] = cleaned_token
-            return redirect(url_for('main.search_products'))
-        else:
-            return render_template('auth_page.html', title="Autenticação da API de Produtos")
-
     if 'auth_token' in session:
         return redirect(url_for('main.search_products'))
-        
     return render_template('auth_page.html', title="Autenticação da API de Produtos")
+
+@routes_bp.route('/get-temp-token', methods=['POST'])
+def get_temp_token():
+    data = request.get_json()
+    login = data.get('login')
+    senha = data.get('senha')
+
+    if not login or not senha:
+        return jsonify({'error': 'Login e Senha são obrigatórios.'}), 400
+
+    login_response = api_login(login, senha)
+
+    if 'error' in login_response:
+        return jsonify({'error': login_response['error']}), 500
+
+    temp_token = login_response.get('TokenTemporario')
+    if not temp_token:
+        return jsonify({'error': 'Token temporário não encontrado na resposta de login.'}), 500
+    
+    return jsonify({'temp_token': temp_token})
+
+@routes_bp.route('/get-final-token', methods=['POST'])
+def get_final_token():
+    data = request.get_json()
+    temp_token = data.get('temp_token')
+
+    if not temp_token:
+        return jsonify({'error': 'Token temporário não fornecido.'}), 400
+
+    auth_response = get_final_auth_token(temp_token)
+
+    if 'error' in auth_response:
+        return jsonify({'error': auth_response['error']}), 500
+
+    auth_token = auth_response.get('auth_token')
+    if auth_token:
+        session['auth_token'] = auth_token
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Token de autorização final não encontrado na resposta.'}), 500
 
 @routes_bp.route('/logout')
 def logout():

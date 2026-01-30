@@ -1,15 +1,108 @@
-{% extends "base_template.html" %}
+{% extends "base_template.html" %} {% block content %}
+<div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center text-white text-2xl z-50 hidden">
+    <div class="spinner"></div>
+    <p id="loading-text" class="text-xl font-semibold">Autenticando...</p>
+</div>
 
-{% block content %}
-    <p class="text-gray-300 mb-8 justify-self-center">Por favor, insira seu token de Autorização.</p>
-    <form method="POST" action="{{ url_for('main.authenticate') }}" class="bg-gray-700 p-6 rounded-lg shadow-xl max-w-lg mx-auto w-full">
-        <div class="mb-4 input-group">
-            <input type="text" id="auth_token" name="auth_token" required 
-                    class="shadow-sm focus:ring-indigo-400 focus:border-indigo-400 block w-full sm:text-sm border-gray-600 rounded-md p-2 bg-gray-700 text-white"
-                    placeholder="Cole seu token aqui...">
-        </div>
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md">
-            Autenticar
-        </button>
-    </form>
+<p class="text-gray-300 mb-8 justify-self-center">
+    Por favor, insira seu login e senha.
+</p>
+<form
+    id="login-form"
+    method="POST"
+    action="{{ url_for('main.authenticate') }}"
+    class="bg-gray-700 p-6 rounded-lg shadow-xl max-w-lg mx-auto w-full"
+>
+    <div id="error-message" class="hidden bg-red-500 text-white p-3 rounded-md mb-4 text-sm"></div>
+    <div class="mb-4 input-group">
+        <label for="login" class="block text-sm font-medium text-gray-300 mb-1">Login</label>
+        <input
+            type="text"
+            id="login"
+            name="login"
+            required
+            class="shadow-sm focus:ring-indigo-400 focus:border-indigo-400 block w-full sm:text-sm border-gray-600 rounded-md p-2 bg-gray-700 text-white"
+            placeholder="Digite seu login"
+        />
+    </div>
+    <div class="mb-4 input-group">
+        <label for="login" class="block text-sm font-medium text-gray-300 mb-1">Senha</label>
+        <input
+            type="password"
+            id="senha"
+            name="senha"
+            required
+            class="shadow-sm focus:ring-indigo-400 focus:border-indigo-400 block w-full sm:text-sm border-gray-600 rounded-md p-2 bg-gray-700 text-white"
+            placeholder="Digite sua senha"
+        />
+    </div>
+    <button
+        type="submit"
+        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md"
+    >
+        Autenticar
+    </button>
+</form>
+
+<script>
+    document.getElementById('login-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const login = document.getElementById('login').value;
+        const senha = document.getElementById('senha').value;
+        const overlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
+        const errorMessage = document.getElementById('error-message');
+
+        errorMessage.classList.add('hidden');
+        errorMessage.textContent = '';
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        loadingText.textContent = 'Autenticando...';
+
+        try {
+            const tempTokenResponse = await fetch("{{ url_for('main.get_temp_token') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ login, senha }),
+            });
+
+            const tempTokenData = await tempTokenResponse.json();
+
+            if (!tempTokenResponse.ok) {
+                throw new Error(tempTokenData.error || 'Falha na autenticação.');
+            }
+
+            loadingText.textContent = 'Pegando token de autorização...';
+
+            const finalTokenResponse = await fetch("{{ url_for('main.get_final_token') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ temp_token: tempTokenData.temp_token }),
+            });
+            
+            const finalTokenData = await finalTokenResponse.json();
+
+            if (!finalTokenResponse.ok) {
+                throw new Error(finalTokenData.error || 'Falha ao obter o token final.');
+            }
+
+            if (finalTokenData.success) {
+                window.location.href = "{{ url_for('main.search_products') }}";
+            } else {
+                 throw new Error(finalTokenData.error || 'Ocorreu um erro desconhecido.');
+            }
+
+        } catch (error) {
+            errorMessage.textContent = error.message;
+            errorMessage.classList.remove('hidden');
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+        }
+    });
+</script>
 {% endblock %}
