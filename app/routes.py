@@ -10,7 +10,7 @@ routes_bp = Blueprint('main', __name__)
 
 temp_xml_cache = {}
 temp_manual_cache = {}
-cancellation_flags = {}  # Use a simple dict to track cancellation per session
+cancellation_flags = {}
 
 def clean_input_list(data: str) -> list:
     if not data:
