@@ -67,7 +67,9 @@ def get_final_token():
 def logout():
     session.pop('auth_token', None)
     session.pop('xml_preview_key', None)
-    session.pop('final_xml_results', None)
+    final_key = session.pop('final_xml_results_key', None)
+    if final_key and final_key in temp_xml_cache:
+        del temp_xml_cache[final_key]
     session.pop('last_manual_key', None)
     session.pop('last_form_data', None)
     session.pop('NumeroNFe', None)
@@ -124,8 +126,9 @@ def search_products():
             xml_preview_items = cached.get('items', [])
             NumeroNFe = cached.get('nfe_number', '')
 
-    elif current_mode == 'xml_verify' and 'final_xml_results' in session:
-        results = session.get('final_xml_results', [])
+    elif current_mode == 'xml_verify' and 'final_xml_results_key' in session:
+        final_key = session.get('final_xml_results_key')
+        results = temp_xml_cache.get(final_key, [])
         NumeroNFe = session.get('NumeroNFe', '')
 
     if request.method == 'POST':
@@ -133,7 +136,9 @@ def search_products():
         
         if post_mode == 'manual':
             session.pop('xml_preview_key', None)
-            session.pop('final_xml_results', None)
+            final_key = session.pop('final_xml_results_key', None)
+            if final_key and final_key in temp_xml_cache:
+                del temp_xml_cache[final_key]
             
             last_codebar = request.form.get('codebar', '')
             last_referencia = request.form.get('referencia', '')
@@ -162,7 +167,9 @@ def search_products():
         elif post_mode == 'xml_preview':
             session.pop('last_manual_key', None)
             session.pop('last_form_data', None)
-            session.pop('final_xml_results', None)
+            final_key = session.pop('final_xml_results_key', None)
+            if final_key and final_key in temp_xml_cache:
+                del temp_xml_cache[final_key]
             
             xml_file = request.files.get('xml_file')
             
@@ -229,10 +236,10 @@ def verify_xml_items():
     if error:
         return redirect(url_for('main.search_products', current_mode='xml', error=error))
 
+    final_key = str(uuid.uuid4())
+    temp_xml_cache[final_key] = missing_items or []
+    session['final_xml_results_key'] = final_key
     if not missing_items:
-        session['final_xml_results'] = []
         session['success_message'] = "Sucesso: Todos os itens do XML foram encontrados na API!"
-    else:
-        session['final_xml_results'] = missing_items
 
     return redirect(url_for('main.search_products', current_mode='xml_verify'))
