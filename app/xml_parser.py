@@ -47,11 +47,9 @@ def parse_nfe_xml(xml_content: str) -> tuple[list, str, str | None]:
             
             qcom = qcom_elem.text.strip() if qcom_elem is not None else ''
             
-            # Referência: Apenas os primeiros dígitos antes do '-' em xProd
             reference_match = re.match(r'^([\d\w]+)', xprod)
             reference = reference_match.group(1) if reference_match is not None else ''
 
-            # Referência: tudo que vem após ' - ' até o próximo espaço (token sem espaços)
             after_dash_match = re.search(r'-\s*(\S+)', xprod)
             referencia_pos_dash = after_dash_match.group(1) if after_dash_match is not None else ''
             

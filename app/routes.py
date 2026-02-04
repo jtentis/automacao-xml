@@ -171,31 +171,57 @@ def search_products():
             if final_key and final_key in temp_xml_cache:
                 del temp_xml_cache[final_key]
             
-            xml_file = request.files.get('xml_file')
-            
-            if not xml_file or xml_file.filename == '':
+            xml_files = []
+            try:
+                candidate = request.files.getlist('xml_files')
+                if candidate and hasattr(candidate, '__iter__'):
+                    xml_files.extend(candidate)
+            except Exception:
+                pass
+
+            if not xml_files:
                 return redirect(url_for('main.search_products', current_mode='xml', error="Nenhum arquivo XML foi anexado."))
             
             try:
-                xml_content = xml_file.read().decode('utf-8')
-                xml_items, nfe_number, parse_error = parse_nfe_xml(xml_content)
+                all_items = []
+                nfe_numbers = []
+                errors = []
                 
-                if parse_error:
-                    return redirect(url_for('main.search_products', current_mode='xml', error=parse_error))
+                for xml_file in xml_files:
+                    if not xml_file or getattr(xml_file, 'filename', '') == '':
+                        continue
+                    try:
+                        xml_content = xml_file.read().decode('utf-8')
+                        xml_items, nfe_number, parse_error = parse_nfe_xml(xml_content)
+                        
+                        if parse_error:
+                            errors.append(f"{xml_file.filename}: {parse_error}")
+                            continue
+                        
+                        if not xml_items:
+                            errors.append(f"{xml_file.filename}: Nenhum produto válido foi encontrado.")
+                            continue
+                        
+                        all_items.extend(xml_items)
+                        if nfe_number:
+                            nfe_numbers.append(nfe_number)
+                    except Exception as e:
+                        errors.append(f"{xml_file.filename}: Erro ao processar - {str(e)}")
                 
-                if not xml_items:
-                    return redirect(url_for('main.search_products', current_mode='xml', error="Nenhum produto válido foi encontrado no XML."))
+                if not all_items:
+                    error_msg = '; '.join(errors) if errors else 'Nenhum arquivo válido processado.'
+                    return redirect(url_for('main.search_products', current_mode='xml', error=error_msg))
                 
                 xml_preview_key = str(uuid.uuid4())
-                temp_xml_cache[xml_preview_key] = {'items': xml_items, 'nfe_number': nfe_number}
+                nfe_display = ', '.join(nfe_numbers) if nfe_numbers else 'S/N'
+                temp_xml_cache[xml_preview_key] = {'items': all_items, 'nfe_number': nfe_display, 'errors': errors}
                 session['xml_preview_key'] = xml_preview_key
-                
-                session['NumeroNFe'] = nfe_number
+                session['NumeroNFe'] = nfe_display
                 
                 return redirect(url_for('main.search_products', current_mode='xml_preview_render'))
             
             except Exception as e:
-                return redirect(url_for('main.search_products', current_mode='xml', error=f"Erro ao processar o arquivo: {str(e)}"))
+                return redirect(url_for('main.search_products', current_mode='xml', error=f"Erro ao processar o(s) arquivo(s): {str(e)}"))
 
     return render_template(
         'search_page.html',

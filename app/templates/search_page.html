@@ -48,11 +48,11 @@
             <form id="xml-form" method="POST" action="{{ url_for('main.search_products') }}" class="space-y-4 hidden" enctype="multipart/form-data">
                 <input type="hidden" name="mode" value="xml_preview">
                 <div class="input-group">
-                    <label for="xml_file">Anexar Arquivo XML (NFe)</label>
-                    <input type="file" id="xml_file" name="xml_file" accept=".xml" required>
+                    <label for="xml_files">Anexar Arquivos XML (NFe)</label>
+                    <input type="file" id="xml_files" name="xml_files" accept=".xml" multiple required>
                 </div>
                 <button type="submit" class="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md">
-                    1. Pré-visualizar itens do XML
+                    1. Pré-visualizar itens do(s) XML(s)
                 </button>
             </form>
         </div>
@@ -64,7 +64,7 @@
                 
                 {% if xml_preview_items %}
                     <p class="text-sm text-gray-400 mb-4">
-                        <span class="text-yellow-400 font-bold">Pré-visualização XML:</span> {{ xml_preview_items|length }} itens extraídos do arquivo.
+                        <span class="text-yellow-400 font-bold">Pré-visualização XML:</span> {{ xml_preview_items|length }} itens extraídos do(s) arquivo(s).
                     </p>
                     
                     <div class="table-responsive mb-6">
@@ -95,7 +95,7 @@
                     <form id="verify-form" method="POST" action="{{ url_for('main.verify_xml_items') }}" class="mt-4">
                         <input type="hidden" name="mode" value="xml_verify">
                         <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-semibold py-3 px-4 rounded-lg transition duration-150 ease-in-out shadow-md">
-                            2. Verificar itens faltantes
+                            2. Verificar todos os itens
                         </button>
                     </form>
                     
@@ -295,9 +295,7 @@ document.addEventListener('DOMContentLoaded', function(){
         if (!refs.length) { alert('Nenhum item selecionado'); return; }
         const maxLen = Math.max(...refs.map(ref => groups[ref].length));
         const lines = [];
-        // First line: references
         lines.push(refs.join('\t'));
-        // Then codebars rows
         for (let i = 0; i < maxLen; i++) {
             const row = refs.map(ref => groups[ref][i] || '').join('\t');
             lines.push(row);
