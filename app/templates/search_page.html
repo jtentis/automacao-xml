@@ -58,7 +58,14 @@
         </div>
         
         <div class="bg-gray-800 p-6 rounded-lg shadow-xl w-full md:w-2/3 min-h-[700px]">
+            <div class="flex items-start justify-between gap-4 mb-2">
             <h2 class="text-xl font-semibold mb-2 text-gray-200">2. Resultados / Pré-visualização</h2>
+                <h2 class="text-xl font-semibold text-gray-200">2. Resultados / PrÃ©-visualizaÃ§Ã£o</h2>
+                <div id="process-timer" class="hidden text-xs text-gray-400 whitespace-nowrap">
+                    <span class="text-gray-500">Duraçãõ da solicitação:</span>
+                    <span id="process-timer-value" class="text-gray-300">00:00</span>
+                </div>
+            </div>
             <h3 class="text-lg font-semibold mb-4 text-gray-200">NFe: {{ NumeroNFe | default('S/N', true) }}</h3>
             
             <!-- Tab Bar for XML Results -->
@@ -247,6 +254,85 @@ let xmlMetadata = [];
 let verifiedByXml = {};
 let currentActiveTab = 'combined';
 const CURRENT_MODE = '{{ current_mode }}';
+const PROCESS_TIMER_STORAGE_KEY = 'searchProcessTimer';
+
+function formatElapsedTime(elapsedMs) {
+    const totalSeconds = Math.max(0, Math.round(elapsedMs / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function showProcessTimer(elapsedMs) {
+    const timer = document.getElementById('process-timer');
+    const timerValue = document.getElementById('process-timer-value');
+    if (!timer || !timerValue) return;
+
+    timerValue.textContent = formatElapsedTime(elapsedMs);
+    timer.classList.remove('hidden');
+}
+
+function startProcessTimer(processType) {
+    sessionStorage.setItem(PROCESS_TIMER_STORAGE_KEY, JSON.stringify({
+        startedAt: Date.now(),
+        processType
+    }));
+}
+
+function finalizeProcessTimer() {
+    const rawValue = sessionStorage.getItem(PROCESS_TIMER_STORAGE_KEY);
+    if (!rawValue) return;
+
+    try {
+        const timerData = JSON.parse(rawValue);
+        if (!timerData || !timerData.startedAt) return;
+
+        showProcessTimer(Date.now() - timerData.startedAt);
+    } catch (error) {
+        console.error('Error restoring process timer:', error);
+    } finally {
+        sessionStorage.removeItem(PROCESS_TIMER_STORAGE_KEY);
+    }
+}
+
+function attachProcessTimerListeners() {
+    [
+        'manual-form',
+        'xml-form',
+        'verify-form'
+    ].forEach(formId => {
+        const form = document.getElementById(formId);
+        if (!form || form.dataset.timerBound === 'true') return;
+
+        form.addEventListener('submit', () => {
+            startProcessTimer(formId);
+        });
+        form.dataset.timerBound = 'true';
+    });
+}
+
+function normalizeResultsHeader() {
+    const headerRow = document.querySelector('.bg-gray-800.p-6.rounded-lg.shadow-xl.w-full.md\\:w-2\\/3.min-h-\\[700px\\] > .flex.items-start.justify-between.gap-4.mb-2');
+    if (!headerRow) return;
+
+    const headings = headerRow.querySelectorAll('h2');
+    if (!headings.length) return;
+
+    headings.forEach((heading, index) => {
+        if (index > 0) {
+            heading.remove();
+        }
+    });
+
+    headings[0].textContent = '2. Resultados / Pré-visualização';
+    headings[0].className = 'text-xl font-semibold text-gray-200';
+}
 
 async function initializeTabsForXmlVerify() {
     if (CURRENT_MODE === 'xml_verify') {
@@ -670,6 +756,10 @@ function copyToExcel() {
 
 // ============ PAGE INITIALIZATION ============
 document.addEventListener('DOMContentLoaded', () => {
+    normalizeResultsHeader();
+    finalizeProcessTimer();
+    attachProcessTimerListeners();
+
     if (CURRENT_MODE === 'xml_verify') {
         initializeTabsForXmlVerify();
     }

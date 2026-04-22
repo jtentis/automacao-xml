@@ -4,7 +4,7 @@ from flask import request, session, redirect, url_for, render_template, Blueprin
 from .api_client import api_call, api_login, get_final_auth_token
 from .manual_search import search_manual_products
 from .xml_parser import parse_nfe_xml
-from .xml_verification import verify_xml_items_in_api
+from .xml_verification import verify_grouped_xml_items_in_api
 
 routes_bp = Blueprint('main', __name__)
 
@@ -325,18 +325,17 @@ def verify_xml_items():
     if not items_by_xml:
         return redirect(url_for('main.search_products', current_mode='xml', error="Nenhum item para verificar."))
 
-    # Verify items per XML file while preserving structure
-    verified_by_xml = {}
+    # Verify unique items once across all XML files, then redistribute the result per XML
     cancellation_flags.clear()
-    
-    for xml_index in sorted(items_by_xml.keys()):
-        xml_items = items_by_xml[xml_index]
-        missing_items, error = verify_xml_items_in_api(auth_token, xml_items, cancellation_flags)
-        
-        if error:
-            return redirect(url_for('main.search_products', current_mode='xml', error=error))
-        
-        verified_by_xml[xml_index] = missing_items or []
+    verified_by_xml, verification_stats, error = verify_grouped_xml_items_in_api(
+        auth_token,
+        items_by_xml,
+        cancellation_flags,
+        xml_metadata
+    )
+
+    if error:
+        return redirect(url_for('main.search_products', current_mode='xml', error=error))
 
     if cached:
         session['NumeroNFe'] = cached.get('nfe_number', '')
@@ -353,11 +352,16 @@ def verify_xml_items():
     temp_xml_cache[final_key] = {
         'verified_by_xml': verified_by_xml,
         'xml_metadata': xml_metadata,
-        'all_missing': all_missing
+        'all_missing': all_missing,
+        'verification_stats': verification_stats,
     }
     session['final_xml_results_key'] = final_key
     if not all_missing:
-        session['success_message'] = "Sucesso: Todos os itens do XML foram encontrados na API!"
+        session['success_message'] = (
+            "Sucesso: Todos os itens do XML foram encontrados na API! "
+            f"Foram verificadas {verification_stats['unique_items']} chave(s) única(s), "
+            f"evitando {verification_stats['skipped_duplicates']} repetição(ões)."
+        )
 
     return redirect(url_for('main.search_products', current_mode='xml_verify'))
 
