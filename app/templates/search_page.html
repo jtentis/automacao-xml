@@ -290,7 +290,7 @@ function renderTabBar() {
         };
         
         if (currentActiveTab === `xml_${metadata.index}`) {
-            tab.className += ' bg-gray-700 text-white border-b-2 border-indigo-500';
+            tab.className += ' bg-gray-700 text-white';
         } else {
             tab.className += ' bg-gray-800 text-gray-400 hover:text-white';
         }
@@ -506,7 +506,7 @@ function renderCombinedTab(dedupItems, metadata) {
             </tr>
         `;
         
-        if (item.xml_sources && item.xml_sources.length > 1) {
+        if (item.xml_sources && item.xml_sources.length > 0) {
             item.xml_sources.forEach(source => {
                 const fname = source.xml_filename || 'Unknown';
                 tableHtml += `
@@ -535,7 +535,7 @@ function toggleExpanded(event, expandId) {
     event.preventDefault();
     event.stopPropagation();
     const expandRows = document.querySelectorAll(`.expanded-row#${expandId}`);
-    const btn = event.target;
+    const btn = event.currentTarget;
     
     expandRows.forEach(row => {
         row.classList.toggle('hidden');
@@ -694,16 +694,16 @@ function showTab(tabName) {
     if (tabName === 'manual') {
         manualForm.classList.remove('hidden');
         xmlForm.classList.add('hidden');
-        btnManual.classList.add('text-white', 'border-b-2', 'border-indigo-500');
+        btnManual.classList.add('text-white');
         btnManual.classList.remove('text-gray-400');
-        btnXml.classList.remove('text-white', 'border-b-2', 'border-indigo-500');
+        btnXml.classList.remove('text-white');
         btnXml.classList.add('text-gray-400');
     } else {
         xmlForm.classList.remove('hidden');
         manualForm.classList.add('hidden');
-        btnXml.classList.add('text-white', 'border-b-2', 'border-indigo-500');
+        btnXml.classList.add('text-white');
         btnXml.classList.remove('text-gray-400');
-        btnManual.classList.remove('text-white', 'border-b-2', 'border-indigo-500');
+        btnManual.classList.remove('text-white');
         btnManual.classList.add('text-gray-400');
     }
 }
