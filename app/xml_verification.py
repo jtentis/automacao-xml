@@ -73,8 +73,8 @@ def verify_grouped_xml_items_in_api(auth_token: str, items_by_xml: dict, cancell
         )
 
     print(
-        f"--- Verificando {stats['unique_items']} codebar(s)/chave(s) unica(s) "
-        f"de um total de {stats['total_items']} ocorrencia(s); "
+        f"--- Verificando {stats['unique_items']} códigos de barra unicos "
+        f"de um total de {stats['total_items']} ocorrências; "
         f"duplicados evitados={stats['skipped_duplicates']} ---"
     )
 
@@ -159,15 +159,15 @@ def verify_single_item_in_api(auth_token: str, item: dict, index: int, total_ite
 
         if current_codebar and len(api_codebars) == 1:
             if any(cb.get('Codebar') == current_codebar for cb in api_codebars):
-                print(f"[{index}/{total_items}] ENCONTRADO ✅: {current_codebar} | xmls={source_summary}")
+                print(f"ENCONTRADO ✅: {current_codebar}")
                 return None, None
 
         elif current_codebar and len(api_codebars) > 1:
-            print(f"[{index}/{total_items}] MULTIPLOS CODEBARS: {current_codebar} -> {api_codebar_values} | xmls={source_summary}")
+            print(f"MULTIPLOS CODEBARS: {current_codebar} -> {api_codebar_values}")
             return {
                 "missing": True,
                 "ApiCodebars": ', '.join(api_codebar_values)
             }, None
 
-    print(f"[{index}/{total_items}] NAO ENCONTRADO ❌: {current_codebar} | xmls={source_summary}")
+    print(f"NAO ENCONTRADO ❌: {current_codebar}")
     return {"missing": True}, None

@@ -70,7 +70,7 @@
             
             <!-- Tab Bar for XML Results -->
             <div class="mb-4 border-b border-gray-700" id="xml-tabs-container" style="display: none;">
-                <div class="flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap pb-1" id="xml-tabs">
+                <div class="flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap" id="xml-tabs">
                     <!-- Tabs will be inserted here by JavaScript -->
                 </div>
             </div>
@@ -394,7 +394,7 @@ function renderTabBar() {
     };
     
     if (currentActiveTab === 'combined') {
-        allResultsTab.className += ' bg-gray-700 text-white border-b-2 border-blue-500';
+        allResultsTab.className += ' bg-gray-700 text-white';
     } else {
         allResultsTab.className += ' bg-gray-800 text-gray-400 hover:text-white';
     }
