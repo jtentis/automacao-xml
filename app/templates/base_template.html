@@ -10,6 +10,31 @@
             body {
                 font-family: "Inter", sans-serif;
                 background-color: #1a1a1a;
+                scrollbar-width: thin;
+                scrollbar-color: #6366f1 #1f2937;
+            }
+            * {
+                scrollbar-width: thin;
+                scrollbar-color: #6366f1 #1f2937;
+            }
+            *::-webkit-scrollbar {
+                width: 10px;
+                height: 10px;
+            }
+            *::-webkit-scrollbar-track {
+                background: #1f2937;
+                border-radius: 9999px;
+            }
+            *::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #818cf8 0%, #6366f1 100%);
+                border: 2px solid #1f2937;
+                border-radius: 9999px;
+            }
+            *::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(180deg, #a5b4fc 0%, #7c3aed 100%);
+            }
+            *::-webkit-scrollbar-corner {
+                background: #1f2937;
             }
             .container {
                 max-width: 1024px;
@@ -43,6 +68,7 @@
             .table-responsive {
                 overflow: auto;
                 max-height: 550px;
+                scrollbar-gutter: stable both-edges;
             }
             th {
                 background-color: #4b5563;
