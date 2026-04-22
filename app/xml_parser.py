@@ -9,7 +9,7 @@ def find_robust(elem, tag_name):
         return elem_with_ns
     return elem.find(tag_name)
 
-def parse_nfe_xml(xml_content: str) -> tuple[list, str, str | None]:
+def parse_nfe_xml(xml_content: str, xml_filename: str = None, xml_index: int = None) -> tuple[list, str, str | None]:
     xml_items = []
     nfe_number_text = ''
     error = None
@@ -72,6 +72,8 @@ def parse_nfe_xml(xml_content: str) -> tuple[list, str, str | None]:
                     "CodigoProduto": codebar_ean,
                     "CodigoAuxiliar": code_aux,
                     "Quantidade": int(float(qcom)),
+                    "source_xml_filename": xml_filename,
+                    "source_xml_index": xml_index,
                 })
 
     except ET.ParseError as e:

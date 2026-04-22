@@ -12,6 +12,48 @@ temp_xml_cache = {}
 temp_manual_cache = {}
 cancellation_flags = {}
 
+def deduplicate_items_by_ean(items_by_xml: dict) -> dict:
+    """
+    Deduplicate items by EAN/Codebar, tracking all sources.
+    
+    Args:
+        items_by_xml: dict with format {xml_index: [items]}
+    
+    Returns:
+        dict with:
+        - deduplicated_items: list of items grouped by EAN with source tracking
+        - ean_sources: dict mapping EAN to list of {xml_index, item} occurrences
+    """
+    ean_sources = {}
+    
+    # Group items by Codebar (EAN)
+    for xml_index in items_by_xml:
+        for item in items_by_xml[xml_index]:
+            codebar = item.get('Codebar', '')
+            if codebar:
+                if codebar not in ean_sources:
+                    ean_sources[codebar] = []
+                ean_sources[codebar].append({
+                    'xml_index': xml_index,
+                    'xml_filename': item.get('source_xml_filename', 'Unknown'),
+                    'item': item.copy()
+                })
+    
+    # Create deduplicated items with source tracking
+    deduplicated_items = []
+    for codebar in sorted(ean_sources.keys()):
+        sources = ean_sources[codebar]
+        # Use the first occurrence as the base item
+        base_item = sources[0]['item'].copy()
+        base_item['xml_sources'] = sources
+        base_item['source_count'] = len(sources)
+        deduplicated_items.append(base_item)
+    
+    return {
+        'deduplicated_items': deduplicated_items,
+        'ean_sources': ean_sources
+    }
+
 def clean_input_list(data: str) -> list:
     if not data:
         return []
@@ -123,12 +165,24 @@ def search_products():
              error = "Sessão de pré-visualização expirada. Faça o upload novamente."
              current_mode = 'xml'
         else:
-            xml_preview_items = cached.get('items', [])
+            # For preview display, flatten all items from all XMLs
+            all_items_flat = []
+            for xml_index in sorted(cached.get('items_by_xml', {}).keys()):
+                all_items_flat.extend(cached['items_by_xml'][xml_index])
+            xml_preview_items = all_items_flat
             NumeroNFe = cached.get('nfe_number', '')
+
 
     elif current_mode == 'xml_verify' and 'final_xml_results_key' in session:
         final_key = session.get('final_xml_results_key')
-        results = temp_xml_cache.get(final_key, [])
+        cached = temp_xml_cache.get(final_key)
+        if cached and isinstance(cached, dict) and 'all_missing' in cached:
+            results = cached.get('all_missing', [])
+        elif cached and isinstance(cached, list):
+            # Backwards compatibility
+            results = cached
+        else:
+            results = []
         NumeroNFe = session.get('NumeroNFe', '')
 
     if request.method == 'POST':
@@ -183,38 +237,54 @@ def search_products():
                 return redirect(url_for('main.search_products', current_mode='xml', error="Nenhum arquivo XML foi anexado."))
             
             try:
-                all_items = []
+                xml_metadata = []
+                items_by_xml = {}
                 nfe_numbers = []
                 errors = []
                 
-                for xml_file in xml_files:
+                for xml_index, xml_file in enumerate(xml_files):
                     if not xml_file or getattr(xml_file, 'filename', '') == '':
                         continue
                     try:
+                        xml_filename = xml_file.filename
                         xml_content = xml_file.read().decode('utf-8')
-                        xml_items, nfe_number, parse_error = parse_nfe_xml(xml_content)
+                        xml_items, nfe_number, parse_error = parse_nfe_xml(xml_content, xml_filename=xml_filename, xml_index=xml_index)
                         
                         if parse_error:
-                            errors.append(f"{xml_file.filename}: {parse_error}")
+                            errors.append(f"{xml_filename}: {parse_error}")
                             continue
                         
                         if not xml_items:
-                            errors.append(f"{xml_file.filename}: Nenhum produto válido foi encontrado.")
+                            errors.append(f"{xml_filename}: Nenhum produto válido foi encontrado.")
                             continue
                         
-                        all_items.extend(xml_items)
+                        # Store items organized by XML index
+                        items_by_xml[xml_index] = xml_items
+                        xml_metadata.append({
+                            'filename': xml_filename,
+                            'index': xml_index,
+                            'nfe_number': nfe_number,
+                            'item_count': len(xml_items)
+                        })
                         if nfe_number:
                             nfe_numbers.append(nfe_number)
                     except Exception as e:
                         errors.append(f"{xml_file.filename}: Erro ao processar - {str(e)}")
                 
-                if not all_items:
+                if not items_by_xml:
                     error_msg = '; '.join(errors) if errors else 'Nenhum arquivo válido processado.'
                     return redirect(url_for('main.search_products', current_mode='xml', error=error_msg))
                 
                 xml_preview_key = str(uuid.uuid4())
                 nfe_display = ', '.join(nfe_numbers) if nfe_numbers else 'S/N'
-                temp_xml_cache[xml_preview_key] = {'items': all_items, 'nfe_number': nfe_display, 'errors': errors}
+                
+                # Store structured data with metadata
+                temp_xml_cache[xml_preview_key] = {
+                    'xml_metadata': xml_metadata,
+                    'items_by_xml': items_by_xml,
+                    'nfe_number': nfe_display,
+                    'errors': errors
+                }
                 session['xml_preview_key'] = xml_preview_key
                 session['NumeroNFe'] = nfe_display
                 
@@ -242,16 +312,31 @@ def verify_xml_items():
     auth_token = session.get('auth_token')
     xml_preview_key = session.get('xml_preview_key')
     cached = temp_xml_cache.get(xml_preview_key)
-    xml_items = cached.get('items') if cached else None
     
     if not auth_token:
         return redirect(url_for('main.authenticate'))
-        
-    if not xml_items:
+    
+    if not cached or 'items_by_xml' not in cached:
         return redirect(url_for('main.search_products', current_mode='xml', error="Chave de pré-visualização expirada. Faça o upload novamente."))
 
+    items_by_xml = cached.get('items_by_xml', {})
+    xml_metadata = cached.get('xml_metadata', [])
+    
+    if not items_by_xml:
+        return redirect(url_for('main.search_products', current_mode='xml', error="Nenhum item para verificar."))
+
+    # Verify items per XML file while preserving structure
+    verified_by_xml = {}
     cancellation_flags.clear()
-    missing_items, error = verify_xml_items_in_api(auth_token, xml_items, cancellation_flags)
+    
+    for xml_index in sorted(items_by_xml.keys()):
+        xml_items = items_by_xml[xml_index]
+        missing_items, error = verify_xml_items_in_api(auth_token, xml_items, cancellation_flags)
+        
+        if error:
+            return redirect(url_for('main.search_products', current_mode='xml', error=error))
+        
+        verified_by_xml[xml_index] = missing_items or []
 
     if cached:
         session['NumeroNFe'] = cached.get('nfe_number', '')
@@ -259,13 +344,81 @@ def verify_xml_items():
         del temp_xml_cache[xml_preview_key]
     session.pop('xml_preview_key', None)
     
-    if error:
-        return redirect(url_for('main.search_products', current_mode='xml', error=error))
-
+    # Check if all items were found
+    all_missing = []
+    for xml_index in verified_by_xml:
+        all_missing.extend(verified_by_xml[xml_index])
+    
     final_key = str(uuid.uuid4())
-    temp_xml_cache[final_key] = missing_items or []
+    temp_xml_cache[final_key] = {
+        'verified_by_xml': verified_by_xml,
+        'xml_metadata': xml_metadata,
+        'all_missing': all_missing
+    }
     session['final_xml_results_key'] = final_key
-    if not missing_items:
+    if not all_missing:
         session['success_message'] = "Sucesso: Todos os itens do XML foram encontrados na API!"
 
     return redirect(url_for('main.search_products', current_mode='xml_verify'))
+
+@routes_bp.route('/search-combined', methods=['GET'])
+def search_combined():
+    """Get combined deduplicated results from verified XMLs"""
+    final_key = session.get('final_xml_results_key')
+    if not final_key:
+        return jsonify({'error': 'No verification data available'}), 400
+    
+    cached = temp_xml_cache.get(final_key)
+    if not cached:
+        return jsonify({'error': 'Verification data expired'}), 400
+    
+    # Handle both old and new cache structures
+    if isinstance(cached, dict) and 'verified_by_xml' in cached:
+        verified_by_xml = cached.get('verified_by_xml', {})
+        xml_metadata = cached.get('xml_metadata', [])
+    else:
+        # Backwards compatibility - old flat list format
+        return jsonify({'error': 'Invalid cache format'}), 400
+    
+    # Convert to items_by_xml format for deduplication
+    items_by_xml = verified_by_xml
+    
+    # Deduplicate
+    result = deduplicate_items_by_ean(items_by_xml)
+    deduplicated = result['deduplicated_items']
+    
+    return jsonify({
+        'deduplicated_items': deduplicated,
+        'xml_metadata': xml_metadata,
+        'total_unique': len(deduplicated)
+    })
+
+@routes_bp.route('/search-tab/<int:xml_index>', methods=['GET'])
+def search_tab(xml_index):
+    """Get items for a specific XML tab"""
+    final_key = session.get('final_xml_results_key')
+    if not final_key:
+        return jsonify({'error': 'No verification data available'}), 400
+    
+    cached = temp_xml_cache.get(final_key)
+    if not cached:
+        return jsonify({'error': 'Verification data expired'}), 400
+    
+    # Handle both old and new cache structures
+    if isinstance(cached, dict) and 'verified_by_xml' in cached:
+        verified_by_xml = cached.get('verified_by_xml', {})
+        xml_metadata = cached.get('xml_metadata', [])
+    else:
+        return jsonify({'error': 'Invalid cache format'}), 400
+    
+    items = verified_by_xml.get(xml_index, [])
+    
+    # Find corresponding filename
+    filename = next((m['filename'] for m in xml_metadata if m['index'] == xml_index), 'Unknown')
+    
+    return jsonify({
+        'items': items,
+        'xml_index': xml_index,
+        'filename': filename,
+        'total_items': len(items)
+    })

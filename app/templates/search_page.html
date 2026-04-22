@@ -60,6 +60,14 @@
         <div class="bg-gray-800 p-6 rounded-lg shadow-xl w-full md:w-2/3 min-h-[700px]">
             <h2 class="text-xl font-semibold mb-2 text-gray-200">2. Resultados / Pré-visualização</h2>
             <h3 class="text-lg font-semibold mb-4 text-gray-200">NFe: {{ NumeroNFe | default('S/N', true) }}</h3>
+            
+            <!-- Tab Bar for XML Results -->
+            <div class="mb-4 border-b border-gray-700" id="xml-tabs-container" style="display: none;">
+                <div class="flex flex-wrap gap-2 overflow-x-auto" id="xml-tabs">
+                    <!-- Tabs will be inserted here by JavaScript -->
+                </div>
+            </div>
+            
             <div id="results-content">
                 
                 {% if xml_preview_items %}
@@ -100,16 +108,17 @@
                     </form>
                     
                 {% elif results %}
-                    <p class="text-sm text-gray-400 mb-4">
+                    <p class="text-sm text-gray-400 mb-4" id="results-info">
                         {% if current_mode == 'xml_verify' %}
-                            <span class="text-red-400 font-bold">Modo XML:</span> Exibindo apenas itens do XML <strong>não encontrados</strong> na API.
-                            <span class="text-sm text-gray-400">Total Faltante: {{ results|length }}</span>
+                            <span class="text-red-400 font-bold">Modo XML:</span> Exibindo itens <strong>não encontrados</strong> na API.
+                            <span class="text-sm text-gray-400">Total Itens: {{ results|length }}</span>
                         {% else %}
                             <span class="text-indigo-400 font-bold">Modo Manual:</span> Exibindo {{ results|length }} itens encontrados.
                         {% endif %}
                     </p>
+                    
                     {% if current_mode == 'xml_verify' %}
-                        <div class="flex items-center justify-between mb-3 gap-3">
+                        <div class="flex items-center justify-between mb-3 gap-3 flex-wrap" id="copy-controls">
                             <div class="flex items-center gap-2 text-sm text-gray-300">
                                     <label class="select-cell flex items-center gap-2">
                                         <input id="select-all" type="checkbox" class="row-checkbox-all">
@@ -119,13 +128,15 @@
                                     <span id="selected-count" class="ml-2">0 selecionados</span>
                                 </div>
                             <div class="flex items-center gap-2">
-                                <button id="copy-csv" type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white py-1 px-3 rounded text-sm">Copiar (consulta)</button>
+                                <button id="copy-csv-tab" type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white py-1 px-3 rounded text-sm" title="Copia EANs únicos desta aba">Copiar (SQL)</button>
+                                <!-- <button id="copy-csv-all" type="button" class="bg-blue-600 hover:bg-blue-500 text-white py-1 px-3 rounded text-sm" title="Copia EANs únicos de todas as abas">Copiar (Todos - Única)</button> -->
                                 <button id="copy-excel" type="button" class="bg-green-600 hover:bg-green-500 text-white py-1 px-3 rounded text-sm">Copiar (Excel)</button>
                             </div>
                         </div>
-                        {% endif %}
+                    {% endif %}
+                    
                     <div class="table-responsive">
-                        <table class="divide-y divide-gray-700 rounded-lg w-full">
+                        <table class="divide-y divide-gray-700 rounded-lg w-full" id="results-table">
                             <thead>
                                 <tr>
                                     {% if current_mode == 'xml_verify' %}
@@ -231,82 +242,472 @@
     
 <script>
 
+// ============ TAB MANAGEMENT ============
+let xmlMetadata = [];
+let verifiedByXml = {};
+let currentActiveTab = 'combined';
+const CURRENT_MODE = '{{ current_mode }}';
+
+async function initializeTabsForXmlVerify() {
+    if (CURRENT_MODE === 'xml_verify') {
+        try {
+            const response = await fetch('{{ url_for("main.search_combined") }}');
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('Error fetching combined data:', data.error);
+                return;
+            }
+            
+            xmlMetadata = data.xml_metadata || [];
+            
+            renderTabBar();
+            
+            const savedTab = sessionStorage.getItem('activeXmlTab') || 'combined';
+            loadTab(savedTab);
+        } catch (error) {
+            console.error('Error initializing tabs:', error);
+        }
+    }
+}
+
+function renderTabBar() {
+    const tabsContainer = document.getElementById('xml-tabs');
+    if (!tabsContainer) return;
+    
+    tabsContainer.innerHTML = '';
+    
+    xmlMetadata.forEach(metadata => {
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'px-4 py-2 text-sm font-medium rounded-t-lg transition duration-150 tab-xml-button';
+        const tabLabel = metadata.nfe_number || metadata.filename;
+        tab.innerHTML = `NFe ${tabLabel} <span class="text-xs ml-1 text-gray-400">(${metadata.item_count})</span>`;
+        tab.dataset.xmlIndex = metadata.index;
+        tab.onclick = (e) => {
+            e.preventDefault();
+            loadTab(`xml_${metadata.index}`);
+        };
+        
+        if (currentActiveTab === `xml_${metadata.index}`) {
+            tab.className += ' bg-gray-700 text-white border-b-2 border-indigo-500';
+        } else {
+            tab.className += ' bg-gray-800 text-gray-400 hover:text-white';
+        }
+        
+        tabsContainer.appendChild(tab);
+    });
+    
+    const allResultsTab = document.createElement('button');
+    allResultsTab.type = 'button';
+    allResultsTab.className = 'px-4 py-2 text-sm font-medium rounded-t-lg transition duration-150 tab-combined-button';
+    allResultsTab.innerHTML = `📊 Todos os Resultados`;
+    allResultsTab.onclick = (e) => {
+        e.preventDefault();
+        loadTab('combined');
+    };
+    
+    if (currentActiveTab === 'combined') {
+        allResultsTab.className += ' bg-gray-700 text-white border-b-2 border-blue-500';
+    } else {
+        allResultsTab.className += ' bg-gray-800 text-gray-400 hover:text-white';
+    }
+    
+    tabsContainer.appendChild(allResultsTab);
+    
+    if (xmlMetadata.length > 0) {
+        document.getElementById('xml-tabs-container').style.display = 'block';
+    }
+}
+
+async function loadTab(tabId) {
+    currentActiveTab = tabId;
+    sessionStorage.setItem('activeXmlTab', tabId);
+    
+    if (tabId === 'combined') {
+        await loadCombinedTab();
+    } else if (tabId.startsWith('xml_')) {
+        const xmlIndex = parseInt(tabId.split('_')[1]);
+        await loadXmlTab(xmlIndex);
+    }
+    
+    renderTabBar();
+}
+
+async function loadXmlTab(xmlIndex) {
+    try {
+        const response = await fetch(`{{ url_for("main.search_tab", xml_index=0) }}`.replace('/0', `/${xmlIndex}`));
+        const data = await response.json();
+        
+        if (data.error) {
+            console.error('Error loading tab:', data.error);
+            return;
+        }
+        
+        renderXmlTab(data.items, data.filename, xmlIndex);
+    } catch (error) {
+        console.error('Error fetching tab data:', error);
+    }
+}
+
+function renderXmlTab(items, filename, xmlIndex) {
+    const resultsContent = document.getElementById('results-content');
+    if (!resultsContent) return;
+    
+    let tableHtml = `
+        <p class="text-sm text-gray-400 mb-4">
+            <span class="text-sm text-gray-400">Total: ${items.length} itens não encontrados</span>
+        </p>
+        
+        <div class="flex items-center justify-between mb-3 gap-3 flex-wrap" id="copy-controls">
+            <div class="flex items-center gap-2 text-sm text-gray-300">
+                <label class="select-cell flex items-center gap-2">
+                    <input id="select-all" type="checkbox" class="row-checkbox-all">
+                    <span class="checkmark"></span>
+                    <span class="ml-1">Selecionar tudo</span>
+                </label>
+                <span id="selected-count" class="ml-2">0 selecionados</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="copy-csv-tab" type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white py-1 px-3 rounded text-sm" title="Copia EANs únicos desta aba">Copiar (SQL)</button>
+                <button id="copy-excel" type="button" class="bg-green-600 hover:bg-green-500 text-white py-1 px-3 rounded text-sm">Copiar (Excel)</button>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="divide-y divide-gray-700 rounded-lg w-full" id="results-table">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg"></th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">Item</th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">ID Microvix</th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">Referência</th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">EAN 1</th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">EAN 2</th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">Descrição</th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">PA</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-gray-700 divide-y divide-gray-600">
+    `;
+    
+    items.forEach(item => {
+        const apiCodebars = item['ApiCodebars'] ? item['ApiCodebars'].split(',').map(c => c.trim()) : [];
+        const ean1 = apiCodebars[0] || item['Codebar'] || 'N/A';
+        const ean2 = apiCodebars[1] || '';
+        
+        tableHtml += `
+            <tr class="hover:bg-gray-600 transition duration-100 bg-red-900 bg-opacity-30">
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">
+                    <label class="select-cell w-full h-full flex items-center">
+                        <input type="checkbox" class="row-checkbox" data-codebars="${item['ApiCodebars'] || item['Codebar']}" data-referencia="${item['ReferenciaPosDash'] || 'N/A'}">
+                        <span class="checkmark"></span>
+                    </label>
+                </td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm font-bold text-white">${item['nItem'] || 'S/N'}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">${item['CodigoProduto'] || 'N/A'}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">${item['ReferenciaPosDash'] || 'N/A'}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-yellow-400">${ean1}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-yellow-400">${ean2}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">${item['NomeProduto'] || 'N/A'}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">${item['CodigoAuxiliar'] || 'N/A'}</td>
+            </tr>
+        `;
+    });
+    
+    tableHtml += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    resultsContent.innerHTML = tableHtml;
+    attachCopyButtonListeners();
+    updateSelectedCount();
+}
+
+async function loadCombinedTab() {
+    try {
+        const response = await fetch('{{ url_for("main.search_combined") }}');
+        const data = await response.json();
+        
+        if (data.error) {
+            console.error('Error loading combined tab:', data.error);
+            return;
+        }
+        
+        renderCombinedTab(data.deduplicated_items, data.xml_metadata);
+    } catch (error) {
+        console.error('Error fetching combined data:', error);
+    }
+}
+
+function renderCombinedTab(dedupItems, metadata) {
+    const resultsContent = document.getElementById('results-content');
+    if (!resultsContent) return;
+    
+    let tableHtml = `
+        <p class="text-sm text-gray-400 mb-4">
+            <span class="text-blue-400 font-bold">Todos os Resultados:</span> ${dedupItems.length} EANs únicos
+        </p>
+        
+        <div class="flex items-center justify-between mb-3 gap-3 flex-wrap" id="copy-controls">
+            <div class="flex items-center gap-2 text-sm text-gray-300">
+                <label class="select-cell flex items-center gap-2">
+                    <input id="select-all" type="checkbox" class="row-checkbox-all">
+                    <span class="checkmark"></span>
+                    <span class="ml-1">Selecionar tudo</span>
+                </label>
+                <span id="selected-count" class="ml-2">0 selecionados</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="copy-csv-tab" type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white py-1 px-3 rounded text-sm" title="Copia EANs únicos desta aba">Copiar (SQL)</button>
+                <button id="copy-excel" type="button" class="bg-green-600 hover:bg-green-500 text-white py-1 px-3 rounded text-sm">Copiar (Excel)</button>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="divide-y divide-gray-700 rounded-lg w-full" id="results-table">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg"></th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">EAN</th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">Origem</th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">Referência</th>
+                        <th class="px-4 py-2 text-left text-xs whitespace-nowrap font-medium uppercase tracking-wider">Descrição</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-gray-700 divide-y divide-gray-600">
+    `;
+    
+    dedupItems.forEach((item, index) => {
+        const sourceCount = item.source_count || 1;
+        const codebar = item['Codebar'] || 'N/A';
+        const refText = item['ReferenciaPosDash'] || item['Referencia'] || 'N/A';
+        const desc = item['NomeProduto'] || 'N/A';
+        const expandId = `expand-${index}`;
+        
+        tableHtml += `
+            <tr class="hover:bg-gray-600 transition duration-100 bg-gray-700" id="row-${index}">
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300">
+                    <label class="select-cell w-full h-full flex items-center">
+                        <input type="checkbox" class="row-checkbox" data-codebars="${codebar}" data-referencia="${refText}">
+                        <span class="checkmark"></span>
+                    </label>
+                </td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-yellow-400 font-semibold">${codebar}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-white">
+                    <button type="button" class="expand-btn text-xs bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded" onclick="toggleExpanded(event, '${expandId}')" title="Expandir fontes">
+                        ▶ ${sourceCount} arquivo${sourceCount > 1 ? 's' : ''}
+                    </button>
+                </td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">${refText}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-300 truncate">${desc}</td>
+            </tr>
+        `;
+        
+        if (item.xml_sources && item.xml_sources.length > 1) {
+            item.xml_sources.forEach(source => {
+                const fname = source.xml_filename || 'Unknown';
+                tableHtml += `
+                    <tr class="hidden expanded-row" id="${expandId}" style="background-color: rgba(59, 130, 246, 0.1);">
+                        <td colspan="5" class="px-8 py-3 text-sm text-gray-400">
+                            <span class="text-indigo-400">📄 ${fname}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+    });
+    
+    tableHtml += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    resultsContent.innerHTML = tableHtml;
+    attachCopyButtonListeners();
+    updateSelectedCount();
+}
+
+function toggleExpanded(event, expandId) {
+    event.preventDefault();
+    event.stopPropagation();
+    const expandRows = document.querySelectorAll(`.expanded-row#${expandId}`);
+    const btn = event.target;
+    
+    expandRows.forEach(row => {
+        row.classList.toggle('hidden');
+    });
+    
+    // Update button icon
+    if (expandRows.length > 0 && !expandRows[0].classList.contains('hidden')) {
+        btn.textContent = btn.textContent.replace('▶', '▼');
+    } else {
+        btn.textContent = btn.textContent.replace('▼', '▶');
+    }
+}
+
+// ============ COPY BUTTON HANDLERS ============
+function attachCopyButtonListeners() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const copyCsvTabBtn = document.getElementById('copy-csv-tab');
+    // const copyCsvAllBtn = document.getElementById('copy-csv-all');
+    const copyExcelBtn = document.getElementById('copy-excel');
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = this.checked);
+            updateSelectedCount();
+        });
+    }
+    
+    // Add change listeners to checkboxes
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList.contains('row-checkbox')) {
+            updateSelectedCount();
+        }
+    });
+    
+    if (copyCsvTabBtn) {
+        copyCsvTabBtn.addEventListener('click', () => copyUnique('tab'));
+    }
+    
+    // if (copyCsvAllBtn) {
+    //     copyCsvAllBtn.addEventListener('click', () => copyUnique('all'));
+    // }
+    
+    if (copyExcelBtn) {
+        copyExcelBtn.addEventListener('click', copyToExcel);
+    }
+}
+
 function updateSelectedCount() {
     const checked = document.querySelectorAll('.row-checkbox:checked').length;
     const el = document.getElementById('selected-count');
     if (el) el.textContent = checked + ' selecionados';
 }
 
-document.addEventListener('change', function(e){
-    if (e.target && e.target.classList && e.target.classList.contains('row-checkbox')) {
-        updateSelectedCount();
+function copyUnique(mode) {
+    const selectedCheckboxes = Array.from(document.querySelectorAll('.row-checkbox:checked'));
+    if (!selectedCheckboxes.length) {
+        alert('Nenhum item selecionado');
+        return;
+    }
+    
+    let allCodes = [];
+    selectedCheckboxes.forEach(checkbox => {
+        const codebars = checkbox.dataset.codebars || '';
+        if (codebars) {
+            codebars.split(',').forEach(cb => {
+                const trimmed = cb.trim();
+                if (trimmed && !allCodes.includes(trimmed)) {
+                    allCodes.push(trimmed);
+                }
+            });
+        }
+    });
+    
+    if (!allCodes.length) {
+        alert('Nenhum EAN disponível');
+        return;
+    }
+    
+    const text = allCodes.join(', ');
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = mode === 'tab' ? document.getElementById('copy-csv-tab') : document.getElementById('copy-csv-all');
+        const originalText = btn.textContent;
+        btn.textContent = 'Copiado!';
+        setTimeout(() => { btn.textContent = originalText; }, 1200);
+    });
+}
+
+function copyToExcel() {
+    const selectedCheckboxes = Array.from(document.querySelectorAll('.row-checkbox:checked'));
+    if (!selectedCheckboxes.length) {
+        alert('Nenhum item selecionado');
+        return;
+    }
+    
+    const groups = {};
+    selectedCheckboxes.forEach(n => {
+        const referencia = n.dataset.referencia || 'N/A';
+        const codebars = n.dataset.codebars || '';
+        if (!groups[referencia]) {
+            groups[referencia] = [];
+        }
+        if (codebars) {
+            codebars.split(',').forEach(cb => {
+                const trimmed = cb.trim();
+                if (trimmed) groups[referencia].push(trimmed);
+            });
+        }
+    });
+    
+    const refs = Object.keys(groups).filter(ref => groups[ref].length > 0);
+    if (!refs.length) {
+        alert('Nenhum item selecionado');
+        return;
+    }
+    
+    const maxLen = Math.max(...refs.map(ref => groups[ref].length));
+    const lines = [];
+    lines.push(refs.join('\t'));
+    for (let i = 0; i < maxLen; i++) {
+        const row = refs.map(ref => groups[ref][i] || '').join('\t');
+        lines.push(row);
+    }
+    
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copy-excel');
+        const originalText = btn.textContent;
+        btn.textContent = 'Copiado!';
+        setTimeout(() => { btn.textContent = originalText; }, 1200);
+    });
+}
+
+// ============ PAGE INITIALIZATION ============
+document.addEventListener('DOMContentLoaded', () => {
+    if (CURRENT_MODE === 'xml_verify') {
+        initializeTabsForXmlVerify();
+    }
+    
+    // Attach listeners to initial buttons if in non-tab mode
+    if (CURRENT_MODE !== 'xml_verify' || xmlMetadata.length === 0) {
+        attachCopyButtonListeners();
     }
 });
 
-document.addEventListener('DOMContentLoaded', function(){
-    const selectAll = document.getElementById('select-all');
-    if (selectAll) {
-        selectAll.addEventListener('change', function(){
-            const checked = this.checked;
-            document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = checked);
-            updateSelectedCount();
-        });
+function hideAlert() {
+    const alertDiv = document.getElementById('alert-success');
+    if (alertDiv) alertDiv.style.display = 'none';
+}
+
+function showTab(tabName) {
+    const manualForm = document.getElementById('manual-form');
+    const xmlForm = document.getElementById('xml-form');
+    const btnManual = document.getElementById('btn-manual');
+    const btnXml = document.getElementById('btn-xml');
+    
+    if (tabName === 'manual') {
+        manualForm.classList.remove('hidden');
+        xmlForm.classList.add('hidden');
+        btnManual.classList.add('text-white', 'border-b-2', 'border-indigo-500');
+        btnManual.classList.remove('text-gray-400');
+        btnXml.classList.remove('text-white', 'border-b-2', 'border-indigo-500');
+        btnXml.classList.add('text-gray-400');
+    } else {
+        xmlForm.classList.remove('hidden');
+        manualForm.classList.add('hidden');
+        btnXml.classList.add('text-white', 'border-b-2', 'border-indigo-500');
+        btnXml.classList.remove('text-gray-400');
+        btnManual.classList.remove('text-white', 'border-b-2', 'border-indigo-500');
+        btnManual.classList.add('text-gray-400');
     }
+}
 
-    const copyCsvBtn = document.getElementById('copy-csv');
-    const copyExcelBtn = document.getElementById('copy-excel');
-
-    function getSelectedGrouped() {
-        const nodes = Array.from(document.querySelectorAll('.row-checkbox:checked'));
-        const groups = {};
-        nodes.forEach(n => {
-            const referencia = n.dataset.referencia || 'N/A';
-            const codebars = n.dataset.codebars || '';
-            if (!groups[referencia]) {
-                groups[referencia] = [];
-            }
-            if (codebars) {
-                codebars.split(',').forEach(cb => {
-                    const trimmed = cb.trim();
-                    if (trimmed) groups[referencia].push(trimmed);
-                });
-            }
-        });
-        return groups;
-    }
-
-    if (copyCsvBtn) copyCsvBtn.addEventListener('click', function(){
-        const groups = getSelectedGrouped();
-        const allCodes = [];
-        for (const ref in groups) {
-            allCodes.push(...groups[ref]);
-        }
-        if (!allCodes.length) { alert('Nenhum item selecionado'); return; }
-        const text = allCodes.join(', ');
-        navigator.clipboard.writeText(text).then(()=>{
-            copyCsvBtn.textContent = 'Copiado!';
-            setTimeout(()=> copyCsvBtn.textContent = 'Copiar (linha, vírgulas)', 1200);
-        });
-    });
-
-    if (copyExcelBtn) copyExcelBtn.addEventListener('click', function(){
-        const groups = getSelectedGrouped();
-        const refs = Object.keys(groups).filter(ref => groups[ref].length > 0);
-        if (!refs.length) { alert('Nenhum item selecionado'); return; }
-        const maxLen = Math.max(...refs.map(ref => groups[ref].length));
-        const lines = [];
-        lines.push(refs.join('\t'));
-        for (let i = 0; i < maxLen; i++) {
-            const row = refs.map(ref => groups[ref][i] || '').join('\t');
-            lines.push(row);
-        }
-        const text = lines.join('\n');
-        navigator.clipboard.writeText(text).then(()=>{
-            copyExcelBtn.textContent = 'Copiado!';
-            setTimeout(()=> copyExcelBtn.textContent = 'Copiar (Excel)', 1200);
-        });
-    });
-});
 </script>
 
 {% endblock %}
