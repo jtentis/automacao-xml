@@ -43,10 +43,24 @@ def deduplicate_items_by_ean(items_by_xml: dict) -> dict:
     deduplicated_items = []
     for codebar in sorted(ean_sources.keys()):
         sources = ean_sources[codebar]
+        unique_sources = []
+        seen_source_keys = set()
+
+        for source in sources:
+            source_key = (
+                source.get('xml_index'),
+                source.get('xml_filename') or 'Unknown',
+            )
+            if source_key in seen_source_keys:
+                continue
+            seen_source_keys.add(source_key)
+            unique_sources.append(source)
+
         # Use the first occurrence as the base item
         base_item = sources[0]['item'].copy()
-        base_item['xml_sources'] = sources
-        base_item['source_count'] = len(sources)
+        base_item['xml_sources'] = unique_sources
+        base_item['source_count'] = len(unique_sources)
+        base_item['occurrence_count'] = len(sources)
         deduplicated_items.append(base_item)
     
     return {
